@@ -1,0 +1,64 @@
+{
+  "kind": "collectionType",
+  "collectionName": "provider_profiles",
+  "info": {
+    "singularName": "provider-profile",
+    "pluralName": "provider-profiles",
+    "displayName": "ProviderProfile"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "specialty": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "plumbing",
+        "electrical",
+        "carpentry",
+        "cleaning",
+        "technical",
+        "painting",
+        "other"
+      ]
+    },
+    "experience": {
+      "type": "integer",
+      "required": true
+    },
+    "location": {
+      "type": "string",
+      "required": true
+    },
+    "avg_hourly_rate": {
+      "type": "decimal",
+      "required": true
+    },
+    "rating": {
+      "type": "integer",
+      "required": false,
+      "default": 0
+    },
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "provider_profile"
+    },
+    "reviews": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::review.review",
+      "mappedBy": "provider_profile"
+    },
+    "bio": {
+      "type": "text",
+      "required": true
+    },
+    "services_offered": {
+      "type": "json"
+    }
+  }
+}
