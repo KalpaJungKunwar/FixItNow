@@ -8,10 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +29,7 @@ export default function Login() {
 
       const { jwt } = res.data;
 
-      // Fetch full user with roleType and provider_profile
+      // Fetch full user with roleType
       const userRes = await axios.get(
         `${API_URL}/users/me?populate[0]=role&populate[1]=provider_profile`,
         { headers: { Authorization: `Bearer ${jwt}` } },
@@ -40,17 +37,25 @@ export default function Login() {
 
       login(userRes.data, jwt);
 
-      // Redirect based on roleType (your custom enumeration field)
       const roleType = userRes.data.roleType;
-      if (roleType === "provider") {
-        navigate("/providerdashboard");
-      } else {
-        navigate("/");
-      }
+      if (roleType === "provider") navigate("/providerdashboard");
+      else if (roleType === "admin") navigate("/admin");
+      else navigate("/");
     } catch (err) {
-      setError(
-        err.response?.data?.error?.message || "Invalid email or password.",
-      );
+      const msg =
+        err.response?.data?.error?.message || "Invalid email or password.";
+
+      if (msg.toLowerCase().includes("pending")) {
+        setError(
+          "⏳ Your account is pending admin approval. Please check back in 24–48 hours.",
+        );
+      } else if (msg.toLowerCase().includes("rejected")) {
+        setError(
+          "❌ Your account has been rejected. Please contact support at support@fixitnow.com.",
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -65,7 +70,15 @@ export default function Login() {
         </p>
 
         {error && (
-          <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4 border border-red-200">
+          <div
+            className={`text-sm px-4 py-3 rounded-lg mb-4 border ${
+              error.includes("⏳")
+                ? "bg-yellow-50 text-yellow-700 border-yellow-200"
+                : error.includes("❌")
+                  ? "bg-red-50 text-red-600 border-red-200"
+                  : "bg-red-50 text-red-600 border-red-200"
+            }`}
+          >
             {error}
           </div>
         )}

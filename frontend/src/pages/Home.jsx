@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-// ─── SVG Icons ────────────────────────────────────────────────────────────────
 const WrenchIcon = ({ className }) => (
   <svg
     className={className}
@@ -168,7 +167,6 @@ const StarIcon = ({ className, filled }) => (
   </svg>
 );
 
-// ─── Static Data ──────────────────────────────────────────────────────────────
 const categories = [
   { icon: WrenchIcon, label: "Plumbing", desc: "Pipes, leaks & fixtures" },
   { icon: BoltIcon, label: "Electrical", desc: "Wiring, boards & fittings" },
@@ -235,7 +233,6 @@ async function fetchLiveRequests() {
     bids: Array.isArray(item.bids) ? item.bids : (item.bids?.data ?? []),
   }));
 }
-// ─── Status Badge ─────────────────────────────────────────────────────────────
 const statusConfig = {
   pending: {
     label: "Open for Bids",
@@ -260,7 +257,6 @@ const categoryIcons = {
   Painting: PaintIcon,
 };
 
-// ─── Live Requests Section ────────────────────────────────────────────────────
 function LiveMarketplace() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -403,7 +399,6 @@ function LiveMarketplace() {
   );
 }
 
-// ─── Main Home Component ───────────────────────────────────────────────────────
 export default function Home() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();

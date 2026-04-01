@@ -55,7 +55,7 @@
     },
     "bio": {
       "type": "text",
-      "required": true
+      "required": false
     },
     "services_offered": {
       "type": "json"

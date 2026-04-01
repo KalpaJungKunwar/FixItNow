@@ -1,0 +1,50 @@
+{
+  "kind": "collectionType",
+  "collectionName": "documentations",
+  "info": {
+    "singularName": "documentation",
+    "pluralName": "documentations",
+    "displayName": "Documentation"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "documentType": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "citizenship",
+        "passport",
+        "certificate"
+      ]
+    },
+    "file": {
+      "type": "media",
+      "multiple": false,
+      "required": true,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    },
+    "approvalStatus": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ]
+    },
+    "user": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "documentations"
+    }
+  }
+}

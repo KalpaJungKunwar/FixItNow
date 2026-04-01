@@ -470,6 +470,48 @@ export interface ApiBidBid extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiDocumentationDocumentation
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'documentations';
+  info: {
+    displayName: 'Documentation';
+    pluralName: 'documentations';
+    singularName: 'documentation';
+  };
+  options: {
+    draftAndPublish: true;
+  };
+  attributes: {
+    approvalStatus: Schema.Attribute.Enumeration<
+      ['pending', 'approved', 'rejected']
+    > &
+      Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    documentType: Schema.Attribute.Enumeration<
+      ['citizenship', 'passport', 'certificate']
+    > &
+      Schema.Attribute.Required;
+    file: Schema.Attribute.Media<'images' | 'files' | 'videos' | 'audios'> &
+      Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::documentation.documentation'
+    > &
+      Schema.Attribute.Private;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
   collectionName: 'messages';
   info: {
@@ -519,7 +561,7 @@ export interface ApiProviderProfileProviderProfile
   };
   attributes: {
     avg_hourly_rate: Schema.Attribute.Decimal & Schema.Attribute.Required;
-    bio: Schema.Attribute.Text & Schema.Attribute.Required;
+    bio: Schema.Attribute.Text;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
@@ -1125,12 +1167,21 @@ export interface PluginUsersPermissionsUser
     draftAndPublish: false;
   };
   attributes: {
+    approvalStatus: Schema.Attribute.Enumeration<
+      ['pending', 'approved', 'rejected']
+    > &
+      Schema.Attribute.Required &
+      Schema.Attribute.DefaultTo<'pending'>;
     blocked: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     confirmationToken: Schema.Attribute.String & Schema.Attribute.Private;
     confirmed: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+    documentations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::documentation.documentation'
+    >;
     email: Schema.Attribute.Email &
       Schema.Attribute.Required &
       Schema.Attribute.SetMinMaxLength<{
@@ -1159,7 +1210,7 @@ export interface PluginUsersPermissionsUser
       'manyToOne',
       'plugin::users-permissions.role'
     >;
-    roleType: Schema.Attribute.Enumeration<['customer', 'provider']> &
+    roleType: Schema.Attribute.Enumeration<['customer', 'provider', 'admin']> &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'customer'>;
     updatedAt: Schema.Attribute.DateTime;
@@ -1186,6 +1237,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::bid.bid': ApiBidBid;
+      'api::documentation.documentation': ApiDocumentationDocumentation;
       'api::message.message': ApiMessageMessage;
       'api::provider-profile.provider-profile': ApiProviderProfileProviderProfile;
       'api::review.review': ApiReviewReview;

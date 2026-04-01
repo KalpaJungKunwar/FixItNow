@@ -1,8 +1,64 @@
 import { Server } from "socket.io";
 import type { Core } from "@strapi/strapi";
 
+process.on('unhandledRejection', (reason: any) => {
+  if (reason?.code === 'EBUSY' && reason?.syscall === 'unlink') {
+    console.warn('[upload] Ignored EBUSY temp file cleanup (Windows lock):', reason.path);
+    return;
+  }
+  console.error('Unhandled Rejection:', reason);
+  process.exit(1);
+});
+
 export default {
-  register() {},
+  register({ strapi }: { strapi: Core.Strapi }) {
+    const usersPermissionsPlugin = strapi.plugin('users-permissions');
+    const originalRegister = usersPermissionsPlugin.controller('auth').register;
+
+    usersPermissionsPlugin.controller('auth').register = async function (ctx: any) {
+      // Read roleType before anything strips it
+      const roleType = ctx.request.body?.roleType || 'customer';
+
+      // Remove roleType so Strapi's register doesn't fail on unknown field
+      if (ctx.request.body) {
+        delete ctx.request.body.roleType;
+      }
+
+      // Call Strapi's original register
+      await originalRegister.call(this, ctx);
+
+      // Only proceed if registration succeeded
+      if (ctx.response.status === 200 && ctx.response.body?.user?.id) {
+        const userId = ctx.response.body.user.id;
+        const knex = (strapi as any).db.connection;
+
+        try {
+          // Find correct role
+          const role = await strapi
+            .query('plugin::users-permissions.role')
+            .findOne({ where: { type: roleType } });
+
+          // Raw DB update — bypasses all Strapi hooks and services
+          await knex('up_users')
+            .where({ id: userId })
+            .update({
+              blocked: true,
+              confirmed: false,
+              approval_status: 'pending',
+              role_type: roleType,
+              ...(role ? { role: role.id } : {}),
+            });
+
+          console.log(`[register] User ${userId} blocked=true, roleType=${roleType}`);
+        } catch (err) {
+          console.error('[register] Failed to update user after registration:', err);
+        }
+
+        // Nullify JWT so they can't use the token
+        ctx.response.body.jwt = null;
+      }
+    };
+  },
 
   bootstrap({ strapi }: { strapi: Core.Strapi }) {
     const io = new Server((strapi as any).server.httpServer, {
@@ -16,18 +72,15 @@ export default {
         socket.join(requestId);
       });
 
-      // ← replace the old send_message with this
       socket.on("send_message", async (data) => {
-        // Broadcast immediately (don't wait for DB)
         io.to(data.requestId).emit("receive_message", {
           ...data,
           timestamp: new Date().toISOString(),
         });
 
-        // Persist to DB in background
         await (strapi as any).entityService.create("api::message.message", {
           data: {
-            msg: data.message, // field is called "msg" in your schema
+            msg: data.message,
             sender_name: data.senderName,
             service_request: data.requestId,
             sender: data.senderId,
@@ -35,7 +88,6 @@ export default {
         });
       });
 
-      // ADD THIS
       socket.on("leave_room", (requestId: string) => {
         socket.leave(requestId);
       });

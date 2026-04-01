@@ -763,7 +763,7 @@ function BidCard({ bid, onAccept, onViewProfile }) {
           </p>
         )}
         <div className="flex items-center gap-3 flex-wrap">
-          {profile?.rating && (
+          {profile?.rating > 0 && (
             <span className="flex items-center gap-1 text-xs text-gray-400">
               <StarIcon className="w-3 h-3 text-amber-400" filled />{" "}
               {profile.rating.toFixed(1)}
@@ -1012,15 +1012,20 @@ function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {sortedBids.map((bid) => (
-                  <BidCard
-                    key={bid.id}
-                    bid={bid}
-                    onAccept={onAcceptBid}
-                    onViewProfile={setShowProfile}
-                  />
-                ))}
+              <div className="relative">
+                <div className="overflow-y-auto max-h-[420px] space-y-3 pr-1 scrollbar-thin">
+                  {sortedBids.map((bid) => (
+                    <BidCard
+                      key={bid.id}
+                      bid={bid}
+                      onAccept={onAcceptBid}
+                      onViewProfile={setShowProfile}
+                    />
+                  ))}
+                </div>
+                {sortedBids.length > 3 && (
+                  <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none rounded-b-2xl" />
+                )}
               </div>
             )}
           </div>
@@ -1163,11 +1168,14 @@ function ServiceHero({ onOpenForm }) {
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
+const REQUESTS_PER_PAGE = 5;
+
 export default function ServicePage() {
   const [showForm, setShowForm] = useState(false);
   const [activeRequests, setActiveRequests] = useState([]);
   const [bidsMap, setBidsMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const pollRef = useRef({});
 
   useEffect(() => {
@@ -1232,7 +1240,12 @@ export default function ServicePage() {
   const handleDeleteRequest = (requestId) => {
     clearInterval(pollRef.current[requestId]);
     delete pollRef.current[requestId];
-    setActiveRequests((prev) => prev.filter((r) => r.id !== requestId));
+    setActiveRequests((prev) => {
+      const updated = prev.filter((r) => r.id !== requestId);
+      const totalPages = Math.ceil(updated.length / REQUESTS_PER_PAGE);
+      setCurrentPage((p) => Math.min(p, Math.max(1, totalPages)));
+      return updated;
+    });
     setBidsMap((prev) => {
       const next = { ...prev };
       delete next[requestId];
@@ -1252,6 +1265,7 @@ export default function ServicePage() {
       activeRequests.find((r) => r.id == requestId),
     ).documentId;
     try {
+      // Accept the selected bid
       await fetch(`${API_URL}/api/bids/${bidDocId}`, {
         method: "PUT",
         headers: {
@@ -1260,6 +1274,25 @@ export default function ServicePage() {
         },
         body: JSON.stringify({ data: { bid_status: "accepted" } }),
       });
+
+      // Reject all other pending bids for the same request
+      const otherPendingBids = bidsMap[requestId].filter(
+        (b) => b.id !== bidId && a(b).bid_status === "pending",
+      );
+      await Promise.all(
+        otherPendingBids.map((b) =>
+          fetch(`${API_URL}/api/bids/${a(b).documentId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ data: { bid_status: "rejected" } }),
+          }),
+        ),
+      );
+
+      // Update request status to in_progress
       await fetch(`${API_URL}/api/service-requests/${requestDocId}`, {
         method: "PUT",
         headers: {
@@ -1268,13 +1301,13 @@ export default function ServicePage() {
         },
         body: JSON.stringify({ data: { service_status: "in_progress" } }),
       });
+
       fetchBidsForRequest(requestId);
       fetchActiveRequests();
     } catch (e) {
       console.error(e);
     }
   };
-
   if (loading)
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
@@ -1307,15 +1340,63 @@ export default function ServicePage() {
               + New Request
             </button>
           </div>
-          {activeRequests.map((req) => (
-            <ActiveRequestPanel
-              key={req.id}
-              request={req}
-              bids={bidsMap[req.id] || []}
-              onAcceptBid={handleAcceptBid}
-              onDelete={handleDeleteRequest}
-            />
-          ))}
+          {(() => {
+            const totalPages = Math.ceil(
+              activeRequests.length / REQUESTS_PER_PAGE,
+            );
+            const paginated = activeRequests.slice(
+              (currentPage - 1) * REQUESTS_PER_PAGE,
+              currentPage * REQUESTS_PER_PAGE,
+            );
+            return (
+              <>
+                {paginated.map((req) => (
+                  <ActiveRequestPanel
+                    key={req.id}
+                    request={req}
+                    bids={bidsMap[req.id] || []}
+                    onAcceptBid={handleAcceptBid}
+                    onDelete={handleDeleteRequest}
+                  />
+                ))}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6 mb-4">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:text-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center text-sm font-bold"
+                    >
+                      ‹
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (page) => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`w-8 h-8 rounded-lg border text-xs font-bold transition-all ${
+                            currentPage === page
+                              ? "bg-blue-500 border-blue-500 text-white shadow-sm"
+                              : "bg-white border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-500"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ),
+                    )}
+                    <button
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-500 hover:border-blue-300 hover:text-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center text-sm font-bold"
+                    >
+                      ›
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       ) : (
         <ServiceHero onOpenForm={() => setShowForm(true)} />

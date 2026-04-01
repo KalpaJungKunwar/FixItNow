@@ -50,7 +50,7 @@ export default function ChatBox({ requestId, currentUser }) {
 
     return () => {
       socket.off("receive_message", handleMessage);
-      socket.emit("leave_room", requestId); // leave the room on unmount
+      socket.emit("leave_room", requestId); 
     };
   }, [requestId]);
 

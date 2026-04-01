@@ -9,8 +9,10 @@ import Register from "./pages/Register";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import ProviderDashboard from "./pages/providerdashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import PendingApproval from "./pages/PendingApproval";
 
-const NO_LAYOUT_ROUTES = ["/providerdashboard"];
+const NO_LAYOUT_ROUTES = ["/providerdashboard", "/admin"];
 
 function Layout({ children }) {
   const location = useLocation();
@@ -36,21 +38,33 @@ function App() {
               <Home />
             </ProtectedRoute>
           } />
-          
-          
+
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
+
           <Route path="/services" element={
             <ProtectedRoute allowedRole="customer">
-             <Services />
-            </ProtectedRoute>} />
-            <Route path="/dashboard" element={
+              <Services />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/dashboard" element={
             <ProtectedRoute allowedRole="customer">
-             <CustomerDashboard />
-            </ProtectedRoute>} />
+              <CustomerDashboard />
+            </ProtectedRoute>
+          } />
+
           <Route path="/providerdashboard" element={
             <ProtectedRoute allowedRole="provider">
               <ProviderDashboard />
+            </ProtectedRoute>
+          } />
+
+          {/* Admin */}
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard />
             </ProtectedRoute>
           } />
         </Routes>

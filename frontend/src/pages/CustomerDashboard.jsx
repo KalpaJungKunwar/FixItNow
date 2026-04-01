@@ -47,7 +47,6 @@ const RecenterMap = ({ lat, lng }) => {
   return null;
 };
 
-// ─── Review Modal ─────────────────────────────────────────────────────────────
 function ReviewModal({ request, onClose, onSubmitted }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -100,27 +99,48 @@ function ReviewModal({ request, onClose, onSubmitted }) {
         throw new Error(e?.error?.message || "Failed to submit review");
       }
 
-      // Recalculate average rating
       const allRevRes = await fetch(
-        `${BASE_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${providerProfileDocId}&fields[0]=rating`,
+        `${BASE_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${providerProfileDocId}&fields[0]=rating&pagination[limit]=100`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const allRevData = await allRevRes.json();
       const allRatings = allRevData?.data ?? [];
-      const newAvg =
-        allRatings.reduce((sum, r) => sum + (r.rating || 0), 0) /
-        allRatings.length;
 
-      await fetch(`${BASE_URL}/api/provider-profiles/${providerProfileDocId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+      const ratingsWithCurrent = allRatings.some(
+        (r) => r.rating === rating && allRatings.length > 0,
+      )
+        ? allRatings.map((r) => r.rating || 0)
+        : [...allRatings.map((r) => r.rating || 0), rating];
+
+      const newAvg =
+        ratingsWithCurrent.reduce((sum, r) => sum + r, 0) /
+        ratingsWithCurrent.length;
+
+      console.log("All ratings:", ratingsWithCurrent, "New avg:", newAvg);
+
+      const updateRes = await fetch(
+        `${BASE_URL}/api/provider-profiles/${providerProfileDocId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            data: { rating: parseFloat(newAvg.toFixed(1)) },
+          }),
         },
-        body: JSON.stringify({
-          data: { rating: parseFloat(newAvg.toFixed(1)) },
-        }),
-      });
+      );
+
+      if (!updateRes.ok) {
+        const e = await updateRes.json();
+        console.error("Failed to update rating:", e);
+        throw new Error(
+          e?.error?.message || "Failed to update provider rating",
+        );
+      }
+
+      console.log("Rating updated to:", parseFloat(newAvg.toFixed(1)));
 
       onSubmitted();
     } catch (e) {
@@ -202,7 +222,6 @@ function ReviewModal({ request, onClose, onSubmitted }) {
   );
 }
 
-// ─── Status Steps ─────────────────────────────────────────────────────────────
 const StatusSteps = ({ status }) => {
   const steps = [
     { key: "pending", label: "Booked", icon: "📋" },
@@ -262,7 +281,6 @@ const StatusSteps = ({ status }) => {
   );
 };
 
-// ─── Tracking Page ─────────────────────────────────────────────────────────────
 const TrackingPage = ({ request, onBack }) => {
   const [liveRequest, setLiveRequest] = useState(request);
   const pollRef = useRef(null);
@@ -466,7 +484,6 @@ const TrackingPage = ({ request, onBack }) => {
   );
 };
 
-// ─── Booking Card ─────────────────────────────────────────────────────────────
 const BookingCard = ({
   request,
   onTrack,
@@ -604,7 +621,6 @@ const BookingCard = ({
   );
 };
 
-// ─── Main Customer Dashboard ──────────────────────────────────────────────────
 export default function CustomerDashboard() {
   const [view, setView] = useState("dashboard");
   const [trackingRequest, setTrackingRequest] = useState(null);
@@ -613,6 +629,7 @@ export default function CustomerDashboard() {
   const [loading, setLoading] = useState(true);
   const [reviewRequest, setReviewRequest] = useState(null);
   const [showProfile, setShowProfile] = useState(null);
+  const [reviewedIds, setReviewedIds] = useState(new Set());
   const navigate = useNavigate();
   const user = getUser();
 
@@ -642,12 +659,10 @@ export default function CustomerDashboard() {
       const bidsData = await bidsRes.json();
       const allBids = bidsData.data || [];
 
-      // Get all provider user IDs from accepted bids
       const providerUserIds = [
         ...new Set(allBids.map((bid) => bid.provider?.id).filter(Boolean)),
       ];
 
-      // Fetch provider profiles by user ID
       if (providerUserIds.length > 0) {
         const profilesRes = await fetch(
           `${BASE_URL}/api/provider-profiles?${providerUserIds.map((id) => `filters[user][id][$in]=${id}`).join("&")}&populate=*`,
@@ -656,7 +671,6 @@ export default function CustomerDashboard() {
         const profilesData = await profilesRes.json();
         const profiles = profilesData.data || [];
 
-        // Attach profile to each bid's provider
         allBids.forEach((bid) => {
           if (bid.provider) {
             bid.provider.provider_profile = profiles.find(
@@ -674,8 +688,23 @@ export default function CustomerDashboard() {
           ),
         }));
 
-      setActiveRequests(attachBids(activeData.data || []));
-      setCompletedRequests(attachBids(completedData.data || []));
+      const active = attachBids(activeData.data || []);
+      const completed = attachBids(completedData.data || []);
+
+      const reviewsRes = await fetch(
+        `${BASE_URL}/api/reviews?filters[customer][id][$eq]=${user.id}&fields[0]=service_request`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const reviewsData = await reviewsRes.json();
+      const reviewedRequestIds = new Set(
+        (reviewsData.data || [])
+          .map((r) => r.service_request?.documentId)
+          .filter(Boolean),
+      );
+
+      setActiveRequests(active);
+      setCompletedRequests(completed);
+      setReviewedIds(reviewedRequestIds);
     } catch (err) {
       console.error(err);
     } finally {
@@ -736,7 +765,7 @@ export default function CustomerDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Stats Row */}
+       
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-1">
@@ -777,7 +806,6 @@ export default function CustomerDashboard() {
           </div>
         </div>
 
-        {/* Active Bookings */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-800">
@@ -820,7 +848,6 @@ export default function CustomerDashboard() {
           )}
         </div>
 
-        {/* Quick Actions */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
           <h2 className="text-base font-bold text-gray-800 mb-4">
             Quick Actions
@@ -846,8 +873,7 @@ export default function CustomerDashboard() {
             </button>
           </div>
         </div>
-
-        {/* Service History */}
+        
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <h2 className="text-lg font-bold text-gray-800 mb-5">
             Service History
@@ -929,12 +955,18 @@ export default function CustomerDashboard() {
                             >
                               View Details
                             </button>
-                            <button
-                              onClick={() => setReviewRequest(req)}
-                              className="text-amber-500 hover:text-amber-700 font-medium transition"
-                            >
-                              ⭐ Review
-                            </button>
+                            {reviewedIds.has(req.documentId) ? (
+                              <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                                ✓ Reviewed
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setReviewRequest(req)}
+                                className="text-amber-500 hover:text-amber-700 font-medium transition"
+                              >
+                                ⭐ Review
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -947,7 +979,6 @@ export default function CustomerDashboard() {
         </div>
       </div>
 
-      {/* Modals */}
       {reviewRequest && (
         <ReviewModal
           request={reviewRequest}
