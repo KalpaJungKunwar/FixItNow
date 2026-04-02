@@ -1491,22 +1491,25 @@ export default function ProviderDashboard() {
 
   const fetchProfile = async (u) => {
   try {
+    // First get the full user with their profile relation
     const res = await fetch(
-      `${API_URL}/api/provider-profiles?filters[user][id][$eq]=${u.id}&populate=*`,
+      `${API_URL}/api/users/${u.id}?populate[provider_profile][populate]=*`,
       { headers: { Authorization: `Bearer ${getToken()}` } },
     );
     const data = await res.json();
-    const raw = data?.data?.[0];
-    console.log("RAW PROFILE:", JSON.stringify(raw, null, 2));
-    if (raw) {
-      const p = raw.attributes ?? raw;
-      p.id = raw.id;
-      p.documentId = raw.documentId ?? raw.id;
-      console.log("FLATTENED PROFILE:", JSON.stringify(p, null, 2));
-      setProfile(p);
+
+    const raw = data?.provider_profile;
+    if (!raw) {
+      console.warn("[fetchProfile] No profile found for user", u.id);
+      return;
     }
-  } catch (e) {
-    console.error(e);
+
+    const p = raw.attributes ?? raw;
+    p.id = raw.id;
+    p.documentId = raw.documentId ?? raw.id;
+    setProfile(p);
+    } catch (e) {
+    console.error("[fetchProfile] Exception:", e);
   }
 };
 

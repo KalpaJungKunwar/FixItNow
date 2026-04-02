@@ -17,27 +17,30 @@ export default function Header() {
   return (
     <header className="w-full bg-white shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-
         <Link to="/" className="text-xl font-semibold text-blue-500">
           FixitNow
         </Link>
 
         <nav className="flex items-center space-x-6 text-sm text-gray-600">
-          
-
           {isCustomer && (
             <>
-              <Link to="/" className="hover:text-gray-900">Home</Link>
-              <Link to="/services" className="hover:text-gray-900">Services</Link>
-              <Link to="/dashboard" className="hover:text-gray-900">My Bookings</Link>
+              <Link to="/" className="hover:text-gray-900">
+                Home
+              </Link>
+              <Link to="/services" className="hover:text-gray-900">
+                Services
+              </Link>
+              <Link to="/dashboard" className="hover:text-gray-900">
+                My Bookings
+              </Link>
             </>
           )}
 
-          
-
           {!user && (
             <>
-              <Link to="/login" className="hover:text-gray-900">Login</Link>
+              <Link to="/login" className="hover:text-gray-900">
+                Login
+              </Link>
               <Link
                 to="/register"
                 className="bg-blue-500 hover:bg-blue-600 rounded-md px-4 py-2 text-white"
@@ -47,7 +50,6 @@ export default function Header() {
             </>
           )}
 
-          {/* Logged in user */}
           {user && (
             <div className="flex items-center space-x-4">
               <span className="text-gray-700 font-medium">

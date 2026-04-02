@@ -36,8 +36,9 @@ function StarDisplay({ value, size = "w-4 h-4" }) {
   );
 }
 
+// AFTER
 export default function ProviderProfilePage({
-  providerUserId,
+  providerDocumentId,
   providerUsername,
   onClose,
 }) {
@@ -46,30 +47,52 @@ export default function ProviderProfilePage({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!providerUserId) return;
+    if (!providerDocumentId) return;
     fetchProfile();
-  }, [providerUserId]);
+  }, [providerDocumentId]);
 
-  const fetchProfile = async () => {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch(
-        `${API_URL}/api/provider-profiles?filters[user][id][$eq]=${providerUserId}&populate[reviews][populate][customer]=true&populate[user]=true`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const data = await res.json();
-      const p = data?.data?.[0];
-      if (p) {
-        setProfile(p);
-        setReviews(p.reviews ?? []);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
+ const fetchProfile = async () => {
+  const token = getToken();
+  if (!token) return;
+  try {
+    // Step 1: fetch profile by its own documentId
+    const res = await fetch(
+      `${API_URL}/api/provider-profiles/${providerDocumentId}?populate[reviews]=true`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    const data = await res.json();
+    const raw = data?.data ?? data;
+    if (!raw) return;
+
+    const p = raw.attributes ?? raw;
+    const profileDocumentId = raw.documentId ?? raw.id;
+    setProfile(p);
+
+    // Step 2: fetch reviews with customer populated
+    const r2 = await fetch(
+      `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer]=true&sort=createdAt:desc`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (r2.ok) {
+      const rdata = await r2.json();
+      const reviewList = (rdata?.data ?? []).map((r) => {
+        const attrs = r.attributes ?? r;
+        return {
+          ...attrs,
+          documentId: r.documentId ?? r.id,
+          customer: attrs.customer?.data
+            ? (attrs.customer.data.attributes ?? attrs.customer.data)
+            : (attrs.customer ?? {}),
+        };
+      });
+      setReviews(reviewList);
     }
-  };
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const username = providerUsername || "Provider";
   const colorClass = avatarColor(username);

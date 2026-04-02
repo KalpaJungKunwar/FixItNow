@@ -1,7 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:1337/api";
 
 export async function fetchAdminStats(token) {
-  const res = await fetch(`${BASE_URL}/admin-stats`, {  // ✅ no extra /api
+  const res = await fetch(`${BASE_URL}/admin-stats`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {

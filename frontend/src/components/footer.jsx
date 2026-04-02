@@ -9,42 +9,75 @@ export default function Footer() {
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">FixitNow</h2>
             <p className="text-sm text-slate-400 leading-relaxed">
-              Your one-stop solution for all home maintenance needs. Quality guaranteed.
+              Your one-stop solution for all home maintenance needs. Quality
+              guaranteed.
             </p>
           </div>
 
-          {/* Services */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-4">Services</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/services/plumbing" className="hover:text-white">Plumbing</Link></li>
-              <li><Link to="/services/cleaning" className="hover:text-white">Cleaning</Link></li>
-              <li><Link to="/services/electrical" className="hover:text-white">Electrical</Link></li>
+              <li>
+                <Link to="/services/plumbing" className="hover:text-white">
+                  Plumbing
+                </Link>
+              </li>
+              <li>
+                <Link to="/services/cleaning" className="hover:text-white">
+                  Cleaning
+                </Link>
+              </li>
+              <li>
+                <Link to="/services/electrical" className="hover:text-white">
+                  Electrical
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* Company */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-4">Company</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/about" className="hover:text-white">About Us</Link></li>
-              <li><Link to="/careers" className="hover:text-white">Careers</Link></li>
-              <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
+              <li>
+                <Link to="/about" className="hover:text-white">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link to="/careers" className="hover:text-white">
+                  Careers
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-white">
+                  Contact
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* Support */}
           <div>
             <h3 className="text-sm font-semibold text-white mb-4">Support</h3>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/help" className="hover:text-white">Help Center</Link></li>
-              <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="hover:text-white">Terms of Service</Link></li>
+              <li>
+                <Link to="/help" className="hover:text-white">
+                  Help Center
+                </Link>
+              </li>
+              <li>
+                <Link to="/privacy" className="hover:text-white">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms" className="hover:text-white">
+                  Terms of Service
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
 
-        {/* Divider */}
         <div className="border-t border-slate-700 mt-10 pt-6 text-center text-sm text-slate-400">
           © {new Date().getFullYear()} FixitNow. All rights reserved.
         </div>

@@ -207,8 +207,6 @@ export default {
       return ctx.badRequest("Invalid userId");
     }
 
-    // Step 1: fetch user without rejectionReason in fields
-    // (it's a custom field — request it separately to avoid 400 if missing)
     let user: any = null;
 
     try {
@@ -238,8 +236,6 @@ export default {
 
     if (!user) return ctx.notFound("User not found");
 
-    // Step 2: try to get rejectionReason separately
-    // (custom field added via schema extension — may not exist on all setups)
     try {
       const raw = await strapi.query("plugin::users-permissions.user").findOne({
         where: { id },
@@ -250,8 +246,6 @@ export default {
       user.rejectionReason = null;
     }
 
-    // Step 3: fetch related data — all wrapped in safeFind so one bad
-    // relation name never kills the whole response
     const serviceRequests = await safeFind(
       "api::service-request.service-request",
       {
@@ -268,6 +262,7 @@ export default {
       limit: 20,
     });
 
+    // Reviews GIVEN by this user as a customer
     const reviews = await safeFind("api::review.review", {
       filters: { customer: { id } },
       populate: { provider_profile: true },
@@ -275,12 +270,26 @@ export default {
       limit: 20,
     });
 
+    // Reviews RECEIVED by this user as a provider
+    const providerProfiles = await safeFind("api::provider-profile.provider-profile", {
+      filters: { user: { id } },
+    });
+    const providerProfileId = providerProfiles?.[0]?.id ?? null;
+    const reviewsReceived = providerProfileId
+      ? await safeFind("api::review.review", {
+          filters: { provider_profile: { id: providerProfileId } },
+          populate: { customer: true },
+          sort: { createdAt: "desc" },
+          limit: 20,
+        })
+      : [];
+
     const messages = await safeFind("api::message.message", {
       filters: { sender: { id } },
       sort: { createdAt: "desc" },
       limit: 30,
     });
 
-    ctx.body = { user, serviceRequests, bids, reviews, messages };
+    ctx.body = { user, serviceRequests, bids, reviews, reviewsReceived, messages };
   },
 };

@@ -8,36 +8,36 @@ import RecentTable from "../components/admin/RecentTable";
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:1337/api";
 const MEDIA_URL = BASE_URL.replace("/api", "");
 
-const badge = (label, color) => (
+const STATUS_COLORS = {
+  open: "bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20",
+  in_progress:
+    "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
+  completed:
+    "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  cancelled: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
+  pending: "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
+  accepted:
+    "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  rejected: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
+  approved:
+    "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  blocked: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
+  active:
+    "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  customer:
+    "bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20",
+  provider:
+    "bg-violet-500/10 text-violet-400 ring-1 ring-inset ring-violet-500/20",
+  admin: "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
+};
+
+const badge = (label) => (
   <span
-    style={{
-      background: color + "22",
-      color,
-      borderRadius: 6,
-      padding: "2px 8px",
-      fontSize: 11,
-      fontWeight: 600,
-    }}
+    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold tracking-wide ${STATUS_COLORS[label] || "bg-zinc-500/10 text-zinc-400 ring-1 ring-inset ring-zinc-500/20"}`}
   >
-    {label}
+    {label?.replace("_", " ")}
   </span>
 );
-
-const statusColor = {
-  open: "#6366f1",
-  in_progress: "#f59e0b",
-  completed: "#22c55e",
-  cancelled: "#ef4444",
-  pending: "#f59e0b",
-  accepted: "#22c55e",
-  rejected: "#ef4444",
-};
-
-const roleColor = {
-  customer: "#6366f1",
-  provider: "#22c55e",
-  admin: "#f59e0b",
-};
 
 function fmt(date) {
   return date
@@ -70,224 +70,94 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
   if (!user) return null;
 
   const tabs = [
-    { id: "profile", label: "Profile & Docs", icon: "👤" },
-    { id: "requests", label: "Service Requests", icon: "📋" },
-    { id: "bids", label: "Bids", icon: "💰" },
-    { id: "reviews", label: "Reviews", icon: "⭐" },
-    { id: "messages", label: "Messages", icon: "💬" },
+    { id: "profile", label: "Profile & Docs" },
+    { id: "requests", label: "Service Requests" },
+    { id: "bids", label: "Bids" },
+    { id: "reviews", label: "Reviews" },
+    { id: "messages", label: "Messages" },
   ];
 
   const handleBlock = async () => {
     await onBlock(user.id);
     setLocalBlocked(true);
   };
-
   const handleUnblock = async () => {
     await onUnblock(user.id);
     setLocalBlocked(false);
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "#000000cc",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-        padding: 20,
-      }}
-    >
-      <div
-        style={{
-          background: "#1e1e2e",
-          borderRadius: 16,
-          width: "100%",
-          maxWidth: 760,
-          maxHeight: "90vh",
-          display: "flex",
-          flexDirection: "column",
-          position: "relative",
-          boxShadow: "0 24px 80px #00000088",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: "24px 28px 0",
-            borderBottom: "1px solid #2a2a3e",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              marginBottom: 20,
-              flexWrap: "wrap",
-            }}
-          >
-            <div
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: "50%",
-                background: "#6366f1",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 20,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-5">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="px-7 pt-6 pb-0 border-b border-zinc-800 flex-shrink-0">
+          <div className="flex items-center gap-4 mb-5 flex-wrap">
+            <div className="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center text-lg font-bold flex-shrink-0">
               {user.username?.[0]?.toUpperCase() || "U"}
             </div>
-            <div style={{ flex: 1, minWidth: 140 }}>
-              <div style={{ color: "#fff", fontWeight: 700, fontSize: 17 }}>
+            <div className="flex-1 min-w-0">
+              <div className="text-white font-semibold text-base truncate">
                 {user.username}
               </div>
-              <div style={{ color: "#6b6b8a", fontSize: 13 }}>{user.email}</div>
+              <div className="text-zinc-500 text-sm truncate">{user.email}</div>
             </div>
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                flexWrap: "wrap",
-              }}
-            >
-              {badge(user.roleType, roleColor[user.roleType] || "#6366f1")}
-              {localBlocked
-                ? badge("blocked", "#ef4444")
-                : badge("active", "#22c55e")}
+            <div className="flex gap-2 items-center flex-wrap">
+              {badge(user.roleType)}
+              {localBlocked ? badge("blocked") : badge("active")}
               {localBlocked ? (
                 <button
                   onClick={handleUnblock}
-                  style={{
-                    background: "#22c55e22",
-                    color: "#22c55e",
-                    border: "1px solid #22c55e44",
-                    borderRadius: 8,
-                    padding: "6px 14px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20 hover:bg-emerald-500/20 transition-colors cursor-pointer"
                 >
-                  🔓 Unblock
+                  Unblock
                 </button>
               ) : (
                 <button
                   onClick={handleBlock}
-                  style={{
-                    background: "#f59e0b22",
-                    color: "#f59e0b",
-                    border: "1px solid #f59e0b44",
-                    borderRadius: 8,
-                    padding: "6px 14px",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20 hover:bg-amber-500/20 transition-colors cursor-pointer"
                 >
-                  🔒 Block
+                  Block
                 </button>
               )}
             </div>
             <button
               onClick={onClose}
-              style={{
-                background: "#2a2a3e",
-                border: "none",
-                color: "#fff",
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                cursor: "pointer",
-                fontSize: 16,
-                flexShrink: 0,
-              }}
+              className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 flex items-center justify-center text-sm flex-shrink-0 transition-colors cursor-pointer"
             >
               ✕
             </button>
           </div>
-
-          {/* Tabs */}
-          <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
+          <div className="flex gap-1 overflow-x-auto">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                style={{
-                  padding: "9px 16px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: "transparent",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: activeTab === t.id ? "#6366f1" : "#6b6b8a",
-                  borderBottom:
-                    activeTab === t.id
-                      ? "2px solid #6366f1"
-                      : "2px solid transparent",
-                  borderRadius: "4px 4px 0 0",
-                  whiteSpace: "nowrap",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
+                className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
+                  activeTab === t.id
+                    ? "border-indigo-500 text-indigo-400"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300"
+                }`}
               >
-                <span>{t.icon}</span>
-                <span>{t.label}</span>
+                {t.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: 24, overflowY: "auto", flex: 1 }}>
+        <div className="p-6 overflow-y-auto flex-1">
           {detailLoading ? (
-            <div style={{ textAlign: "center", padding: 60, color: "#6b6b8a" }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  border: "3px solid #2a2a3e",
-                  borderTop: "3px solid #6366f1",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
-                  margin: "0 auto 12px",
-                }}
-              />
-              Loading user details...
+            <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
+              <div className="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin mb-3" />
+              <span className="text-sm">Loading user details...</span>
             </div>
           ) : !detail ? (
-            <div style={{ textAlign: "center", padding: 60, color: "#ef4444" }}>
+            <div className="text-center py-16 text-red-400 text-sm">
               Failed to load user details.
             </div>
           ) : (
             <>
-              {/* PROFILE TAB */}
               {activeTab === "profile" && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 16 }}
-                >
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "repeat(auto-fill, minmax(160px, 1fr))",
-                      gap: 12,
-                      background: "#13131f",
-                      borderRadius: 12,
-                      padding: 16,
-                    }}
-                  >
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-zinc-950 rounded-xl p-4">
                     {[
                       ["Role", detail.user.roleType],
                       ["Approval", detail.user.approvalStatus],
@@ -297,47 +167,22 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                       ["Rejection Reason", detail.user.rejectionReason || "—"],
                     ].map(([label, value]) => (
                       <div key={label}>
-                        <div
-                          style={{
-                            color: "#6b6b8a",
-                            fontSize: 11,
-                            marginBottom: 4,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {label.toUpperCase()}
+                        <div className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1">
+                          {label}
                         </div>
-                        <div style={{ color: "#e0e0f0", fontSize: 13 }}>
-                          {value}
-                        </div>
+                        <div className="text-zinc-200 text-sm">{value}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div
-                    style={{
-                      color: "#e0e0f0",
-                      fontWeight: 600,
-                      fontSize: 14,
-                      marginBottom: 4,
-                    }}
-                  >
+                  <div className="text-zinc-300 font-semibold text-sm">
                     Uploaded Documents (
                     {detail.user.documentations?.length || 0})
                   </div>
 
                   {!detail.user.documentations?.length ? (
-                    <div
-                      style={{
-                        background: "#13131f",
-                        borderRadius: 12,
-                        padding: 24,
-                        textAlign: "center",
-                        color: "#ef4444",
-                        fontSize: 13,
-                      }}
-                    >
-                      ⚠️ No documents uploaded
+                    <div className="bg-zinc-950 rounded-xl p-6 text-center text-red-400 text-sm">
+                      No documents uploaded
                     </div>
                   ) : (
                     detail.user.documentations.map((doc) => {
@@ -349,126 +194,58 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                       return (
                         <div
                           key={doc.id}
-                          style={{
-                            background: "#13131f",
-                            borderRadius: 12,
-                            padding: 16,
-                            border: "1px solid #2a2a3e",
-                          }}
+                          className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"
                         >
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              marginBottom: 12,
-                            }}
-                          >
+                          <div className="flex justify-between items-center mb-3">
                             <div>
-                              <div
-                                style={{
-                                  color: "#e0e0f0",
-                                  fontWeight: 600,
-                                  fontSize: 14,
-                                }}
-                              >
+                              <div className="text-zinc-200 font-semibold text-sm">
                                 {doc.documentType === "citizenship" &&
-                                  "🪪 Citizenship Certificate"}
-                                {doc.documentType === "passport" &&
-                                  "📘 Passport"}
+                                  "Citizenship Certificate"}
+                                {doc.documentType === "passport" && "Passport"}
                                 {doc.documentType === "certificate" &&
-                                  "📜 Professional Certificate"}
+                                  "Professional Certificate"}
                               </div>
-                              <div
-                                style={{
-                                  color: "#6b6b8a",
-                                  fontSize: 11,
-                                  marginTop: 2,
-                                }}
-                              >
+                              <div className="text-zinc-600 text-xs mt-0.5">
                                 {doc.file?.name || "Unknown file"}
                               </div>
                             </div>
-                            {badge(
-                              doc.approvalStatus || "pending",
-                              statusColor[doc.approvalStatus] || "#f59e0b",
-                            )}
+                            {badge(doc.approvalStatus || "pending")}
                           </div>
                           {isImage && fileUrl && (
                             <img
                               src={fileUrl}
                               alt={doc.documentType}
-                              style={{
-                                width: "100%",
-                                maxHeight: 260,
-                                objectFit: "cover",
-                                borderRadius: 8,
-                                marginBottom: 12,
-                                border: "1px solid #2a2a3e",
-                              }}
+                              className="w-full max-h-64 object-cover rounded-lg mb-3 border border-zinc-800"
                             />
                           )}
                           {isPdf && (
-                            <div
-                              style={{
-                                background: "#2a2a3e",
-                                borderRadius: 8,
-                                padding: "12px 16px",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                marginBottom: 12,
-                              }}
-                            >
-                              <span style={{ fontSize: 24 }}>📄</span>
+                            <div className="bg-zinc-800 rounded-lg p-3 flex items-center gap-3 mb-3">
                               <div>
-                                <div style={{ color: "#e0e0f0", fontSize: 13 }}>
+                                <div className="text-zinc-200 text-sm">
                                   PDF Document
                                 </div>
-                                <div style={{ color: "#6b6b8a", fontSize: 11 }}>
+                                <div className="text-zinc-500 text-xs">
                                   Click below to open
                                 </div>
                               </div>
                             </div>
                           )}
                           {fileUrl && (
-                            <div style={{ display: "flex", gap: 8 }}>
+                            <div className="flex gap-2">
                               <a
                                 href={fileUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{
-                                  flex: 1,
-                                  background: "#6366f122",
-                                  color: "#6366f1",
-                                  border: "1px solid #6366f144",
-                                  borderRadius: 8,
-                                  padding: "8px 12px",
-                                  textAlign: "center",
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  textDecoration: "none",
-                                }}
+                                className="flex-1 bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-2 text-center text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
                               >
-                                🔍 View Full Document
+                                View Document
                               </a>
-
                               <a
                                 href={fileUrl}
                                 download
-                                style={{
-                                  background: "#2a2a3e",
-                                  color: "#e0e0f0",
-                                  border: "1px solid #3a3a4e",
-                                  borderRadius: 8,
-                                  padding: "8px 12px",
-                                  textAlign: "center",
-                                  fontSize: 13,
-                                  fontWeight: 600,
-                                  textDecoration: "none",
-                                }}
+                                className="bg-zinc-800 text-zinc-300 ring-1 ring-inset ring-zinc-700 rounded-lg px-3 py-2 text-center text-xs font-semibold hover:bg-zinc-700 transition-colors"
                               >
-                                ⬇️
+                                Download
                               </a>
                             </div>
                           )}
@@ -479,65 +256,25 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                 </div>
               )}
 
-              {/* SERVICE REQUESTS TAB */}
               {activeTab === "requests" && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
-                >
+                <div className="flex flex-col gap-3">
                   {!detail.serviceRequests?.length ? (
-                    <div
-                      style={{
-                        background: "#13131f",
-                        borderRadius: 12,
-                        padding: 48,
-                        textAlign: "center",
-                        color: "#6b6b8a",
-                        fontSize: 13,
-                      }}
-                    >
+                    <div className="bg-zinc-950 rounded-xl p-12 text-center text-zinc-500 text-sm">
                       No service requests found.
                     </div>
                   ) : (
                     detail.serviceRequests.map((r) => (
                       <div
                         key={r.id}
-                        style={{
-                          background: "#13131f",
-                          borderRadius: 12,
-                          padding: 16,
-                          border: "1px solid #2a2a3e",
-                        }}
+                        className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: "#e0e0f0",
-                              fontWeight: 600,
-                              fontSize: 14,
-                            }}
-                          >
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="text-zinc-200 font-semibold text-sm">
                             {r.title || "—"}
                           </div>
-                          {badge(
-                            r.service_status,
-                            statusColor[r.service_status] || "#6366f1",
-                          )}
+                          {badge(r.service_status)}
                         </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 20,
-                            flexWrap: "wrap",
-                            marginBottom: r.description ? 8 : 0,
-                          }}
-                        >
+                        <div className="flex gap-5 flex-wrap mb-2">
                           {[
                             ["Category", r.category],
                             [
@@ -550,17 +287,17 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                             ["Date", fmt(r.createdAt)],
                           ].map(([label, val]) => (
                             <div key={label}>
-                              <span style={{ color: "#6b6b8a", fontSize: 11 }}>
+                              <span className="text-zinc-500 text-xs">
                                 {label}:{" "}
                               </span>
-                              <span style={{ color: "#c0c0d8", fontSize: 12 }}>
+                              <span className="text-zinc-300 text-xs">
                                 {val || "—"}
                               </span>
                             </div>
                           ))}
                         </div>
                         {r.description && (
-                          <div style={{ color: "#6b6b8a", fontSize: 12 }}>
+                          <div className="text-zinc-500 text-xs">
                             {r.description.slice(0, 140)}
                             {r.description.length > 140 ? "…" : ""}
                           </div>
@@ -571,70 +308,35 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                 </div>
               )}
 
-              {/* BIDS TAB */}
               {activeTab === "bids" && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
-                >
+                <div className="flex flex-col gap-3">
                   {!detail.bids?.length ? (
-                    <div
-                      style={{
-                        background: "#13131f",
-                        borderRadius: 12,
-                        padding: 48,
-                        textAlign: "center",
-                        color: "#6b6b8a",
-                        fontSize: 13,
-                      }}
-                    >
+                    <div className="bg-zinc-950 rounded-xl p-12 text-center text-zinc-500 text-sm">
                       No bids found.
                     </div>
                   ) : (
                     detail.bids.map((b) => (
                       <div
                         key={b.id}
-                        style={{
-                          background: "#13131f",
-                          borderRadius: 12,
-                          padding: 16,
-                          border: "1px solid #2a2a3e",
-                        }}
+                        className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <div
-                            style={{
-                              color: "#e0e0f0",
-                              fontWeight: 600,
-                              fontSize: 14,
-                            }}
-                          >
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="text-zinc-200 font-semibold text-sm">
                             {b.service_request?.title || "Unknown Request"}
                           </div>
-                          {badge(
-                            b.bid_status,
-                            statusColor[b.bid_status] || "#6b6b8a",
-                          )}
+                          {badge(b.bid_status)}
                         </div>
-                        <div
-                          style={{ display: "flex", gap: 20, flexWrap: "wrap" }}
-                        >
+                        <div className="flex gap-5 flex-wrap">
                           {[
                             ["Amount", b.amount ? `Rs. ${b.amount}` : "—"],
                             ["Availability", b.availability],
                             ["Date", fmt(b.createdAt)],
                           ].map(([label, val]) => (
                             <div key={label}>
-                              <span style={{ color: "#6b6b8a", fontSize: 11 }}>
+                              <span className="text-zinc-500 text-xs">
                                 {label}:{" "}
                               </span>
-                              <span style={{ color: "#c0c0d8", fontSize: 12 }}>
+                              <span className="text-zinc-300 text-xs">
                                 {val || "—"}
                               </span>
                             </div>
@@ -646,135 +348,116 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                 </div>
               )}
 
-              {/* REVIEWS TAB */}
               {activeTab === "reviews" && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 10 }}
-                >
-                  {!detail.reviews?.length ? (
-                    <div
-                      style={{
-                        background: "#13131f",
-                        borderRadius: 12,
-                        padding: 48,
-                        textAlign: "center",
-                        color: "#6b6b8a",
-                        fontSize: 13,
-                      }}
-                    >
-                      No reviews found.
-                    </div>
-                  ) : (
-                    detail.reviews.map((r) => (
-                      <div
-                        key={r.id}
-                        style={{
-                          background: "#13131f",
-                          borderRadius: 12,
-                          padding: 16,
-                          border: "1px solid #2a2a3e",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <div style={{ color: "#f59e0b", fontSize: 18 }}>
-                            {"⭐".repeat(
-                              Math.min(Math.round(r.rating || 0), 5),
-                            )}
-                            <span
-                              style={{
-                                color: "#6b6b8a",
-                                fontSize: 12,
-                                marginLeft: 8,
-                                fontFamily: "monospace",
-                              }}
-                            >
-                              ({r.rating})
-                            </span>
-                          </div>
-                          <div style={{ color: "#6b6b8a", fontSize: 12 }}>
-                            {fmt(r.createdAt)}
-                          </div>
-                        </div>
-                        {r.comment && (
-                          <div
-                            style={{
-                              color: "#c0c0d8",
-                              fontSize: 13,
-                              marginBottom: 6,
-                            }}
-                          >
-                            {r.comment}
-                          </div>
-                        )}
-                        {r.provider_profile?.specialty && (
-                          <div style={{ color: "#6b6b8a", fontSize: 11 }}>
-                            Provider specialty: {r.provider_profile.specialty}
-                          </div>
-                        )}
+                <div className="flex flex-col gap-4">
+                  {/* Reviews RECEIVED (if provider) */}
+                  {detail.reviewsReceived?.length > 0 && (
+                    <div>
+                      <div className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-2">
+                        Reviews Received
                       </div>
-                    ))
+                      <div className="flex flex-col gap-3">
+                        {detail.reviewsReceived.map((r) => (
+                          <div
+                            key={r.id}
+                            className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-amber-400 font-semibold text-sm">
+                                {"★".repeat(
+                                  Math.min(Math.round(r.rating || 0), 5),
+                                )}
+                                <span className="text-zinc-500 text-xs ml-2 font-mono">
+                                  ({r.rating})
+                                </span>
+                              </div>
+                              <div className="text-zinc-500 text-xs">
+                                {fmt(r.createdAt)}
+                              </div>
+                            </div>
+                            {r.comment && (
+                              <div className="text-zinc-300 text-sm mb-1">
+                                {r.comment}
+                              </div>
+                            )}
+                            <div className="text-zinc-500 text-xs">
+                              From: {r.customer?.username || "—"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Reviews GIVEN (as customer) */}
+                  <div>
+                    <div className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-2">
+                      Reviews Given
+                    </div>
+                    {!detail.reviews?.length ? (
+                      <div className="bg-zinc-950 rounded-xl p-12 text-center text-zinc-500 text-sm">
+                        No reviews given.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {detail.reviews.map((r) => (
+                          <div
+                            key={r.id}
+                            className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-amber-400 font-semibold text-sm">
+                                {"★".repeat(
+                                  Math.min(Math.round(r.rating || 0), 5),
+                                )}
+                                <span className="text-zinc-500 text-xs ml-2 font-mono">
+                                  ({r.rating})
+                                </span>
+                              </div>
+                              <div className="text-zinc-500 text-xs">
+                                {fmt(r.createdAt)}
+                              </div>
+                            </div>
+                            {r.comment && (
+                              <div className="text-zinc-300 text-sm mb-1">
+                                {r.comment}
+                              </div>
+                            )}
+                            {r.provider_profile?.specialty && (
+                              <div className="text-zinc-500 text-xs">
+                                Provider specialty:{" "}
+                                {r.provider_profile.specialty}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* MESSAGES TAB */}
               {activeTab === "messages" && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 8 }}
-                >
+                <div className="flex flex-col gap-2">
                   {!detail.messages?.length ? (
-                    <div
-                      style={{
-                        background: "#13131f",
-                        borderRadius: 12,
-                        padding: 48,
-                        textAlign: "center",
-                        color: "#6b6b8a",
-                        fontSize: 13,
-                      }}
-                    >
+                    <div className="bg-zinc-950 rounded-xl p-12 text-center text-zinc-500 text-sm">
                       No messages found.
                     </div>
                   ) : (
                     detail.messages.map((m) => (
                       <div
                         key={m.id}
-                        style={{
-                          background: "#13131f",
-                          borderRadius: 10,
-                          padding: "12px 16px",
-                          border: "1px solid #2a2a3e",
-                        }}
+                        className="bg-zinc-950 rounded-xl p-4 border border-zinc-800"
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            marginBottom: 6,
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: "#6366f1",
-                              fontSize: 11,
-                              fontWeight: 600,
-                              textTransform: "uppercase",
-                            }}
-                          >
+                        <div className="flex justify-between mb-1.5">
+                          <span className="text-indigo-400 text-xs font-semibold uppercase tracking-widest">
                             Sent
                           </span>
-                          <span style={{ color: "#6b6b8a", fontSize: 11 }}>
+                          <span className="text-zinc-500 text-xs">
                             {fmt(m.createdAt)}
                           </span>
                         </div>
-                        <div style={{ color: "#c0c0d8", fontSize: 13 }}>
+                        <div className="text-zinc-300 text-sm">
                           {m.content || m.text || m.message || "—"}
                         </div>
                       </div>
@@ -840,7 +523,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       setPendingUsers(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to fetch pending users", err);
+      console.error(err);
     } finally {
       setPendingLoading(false);
     }
@@ -855,7 +538,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       setAllUsers(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Failed to fetch users", err);
+      console.error(err);
     } finally {
       setAllUsersLoading(false);
     }
@@ -905,11 +588,9 @@ export default function AdminDashboard() {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Update in allUsers list
       setAllUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, blocked: true } : u)),
       );
-      // Update in pendingUsers list
       setPendingUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, blocked: true } : u)),
       );
@@ -952,36 +633,19 @@ export default function AdminDashboard() {
 
   if (authLoading || loading)
     return (
-      <div style={styles.centered}>
-        <div style={styles.spinner} />
-        <div
-          style={{
-            color: "#6b6b8a",
-            marginTop: 16,
-            fontFamily: "Inter, sans-serif",
-          }}
-        >
-          Loading dashboard...
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950">
+        <div className="w-10 h-10 border-2 border-zinc-800 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="text-zinc-500 mt-4 text-sm">Loading dashboard...</div>
       </div>
     );
 
   if (error)
     return (
-      <div style={styles.centered}>
-        <div style={{ fontSize: 40 }}>⚠️</div>
-        <div
-          style={{
-            color: "#ef4444",
-            marginTop: 12,
-            fontFamily: "Inter, sans-serif",
-          }}
-        >
-          {error}
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950">
+        <div className="text-red-400 text-sm mt-3">{error}</div>
         <button
           onClick={() => window.location.reload()}
-          style={styles.retryBtn}
+          className="mt-4 px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 transition-colors cursor-pointer"
         >
           Retry
         </button>
@@ -994,16 +658,16 @@ export default function AdminDashboard() {
     stats;
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: "🏠" },
-    { id: "requests", label: "Service Requests", icon: "📋" },
-    { id: "bids", label: "Bids", icon: "💰" },
-    { id: "activity", label: "Recent Activity", icon: "🕐" },
-    { id: "approvals", label: "Pending Approvals", icon: "⏳" },
-    { id: "users", label: "All Users", icon: "👥" },
+    { id: "overview", label: "Overview" },
+    { id: "requests", label: "Service Requests" },
+    { id: "bids", label: "Bids" },
+    { id: "activity", label: "Recent Activity" },
+    { id: "approvals", label: "Pending Approvals" },
+    { id: "users", label: "All Users" },
   ];
 
   return (
-    <div style={styles.page}>
+    <div className="flex min-h-screen bg-zinc-950 font-sans">
       {selectedUser && (
         <UserDetailModal
           user={selectedUser}
@@ -1014,67 +678,55 @@ export default function AdminDashboard() {
         />
       )}
 
-      {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={{ padding: "28px 16px 20px" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 32,
-            }}
-          >
-            <div style={styles.logo}>⚡</div>
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: 15 }}>
+      <aside className="w-56 bg-zinc-900 border-r border-zinc-800 flex-shrink-0 sticky top-0 h-screen overflow-y-auto">
+        <div className="p-5">
+          <div className="flex items-center gap-2.5 mb-7">
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg
+                className="w-4 h-4 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            <span className="text-white font-semibold text-sm tracking-tight">
               Admin Panel
             </span>
           </div>
 
-          <div style={styles.adminBadge}>
-            <div style={styles.adminAvatar}>
+          <div className="flex items-center gap-2.5 bg-zinc-950 rounded-xl p-3 mb-6">
+            <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
               {user?.username?.[0]?.toUpperCase() || "A"}
             </div>
-            <div>
-              <div style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>
+            <div className="min-w-0">
+              <div className="text-white text-xs font-semibold truncate">
                 {user?.username || "Admin"}
               </div>
-              <div style={{ color: "#6366f1", fontSize: 11 }}>
-                Administrator
-              </div>
+              <div className="text-indigo-400 text-[10px]">Administrator</div>
             </div>
           </div>
 
-          <nav style={{ marginTop: 24 }}>
+          <nav className="flex flex-col gap-0.5">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                style={{
-                  ...styles.navBtn,
-                  background:
-                    activeTab === tab.id ? "#6366f122" : "transparent",
-                  color: activeTab === tab.id ? "#6366f1" : "#6b6b8a",
-                  borderLeft:
-                    activeTab === tab.id
-                      ? "3px solid #6366f1"
-                      : "3px solid transparent",
-                }}
+                className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                  activeTab === tab.id
+                    ? "bg-indigo-500/10 text-indigo-400"
+                    : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
+                }`}
               >
-                <span style={{ fontSize: 16 }}>{tab.icon}</span>
                 <span>{tab.label}</span>
                 {tab.id === "approvals" && pendingUsers.length > 0 && (
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      background: "#ef4444",
-                      color: "#fff",
-                      borderRadius: 10,
-                      padding: "1px 7px",
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
-                  >
+                  <span className="ml-auto bg-red-500 text-white rounded-full px-1.5 py-0.5 text-[10px] font-bold">
                     {pendingUsers.length}
                   </span>
                 )}
@@ -1087,45 +739,33 @@ export default function AdminDashboard() {
               logout();
               navigate("/login");
             }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              width: "100%",
-              textAlign: "left",
-              padding: "10px 14px",
-              border: "none",
-              cursor: "pointer",
-              borderRadius: 8,
-              marginTop: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              background: "#ef444422",
-              color: "#ef4444",
-              borderLeft: "3px solid #ef4444",
-            }}
+            className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors mt-4 cursor-pointer"
           >
-            <span style={{ fontSize: 16 }}>🚪</span>
-            <span>Logout</span>
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              />
+            </svg>
+            Sign out
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <main style={styles.main}>
-        <div style={styles.header}>
+      <main className="flex-1 p-8 overflow-y-auto">
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h1
-              style={{
-                color: "#fff",
-                fontSize: 22,
-                fontWeight: 700,
-                margin: 0,
-              }}
-            >
+            <h1 className="text-white font-semibold text-xl tracking-tight">
               {tabs.find((t) => t.id === activeTab)?.label}
             </h1>
-            <div style={{ color: "#6b6b8a", fontSize: 13, marginTop: 4 }}>
+            <div className="text-zinc-500 text-xs mt-1">
               {new Date().toLocaleDateString("en-US", {
                 weekday: "long",
                 year: "numeric",
@@ -1134,63 +774,65 @@ export default function AdminDashboard() {
               })}
             </div>
           </div>
-          <div style={styles.liveBadge}>● Live</div>
+          <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20 rounded-full px-3 py-1 text-xs font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live
+          </div>
         </div>
 
-        {/* OVERVIEW */}
         {activeTab === "overview" && (
-          <div style={styles.section}>
-            <div style={styles.cardRow}>
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Total Users"
                 value={users.total}
-                icon="👥"
+                icon="users"
                 color="#6366f1"
                 sub={`${users.customers} customers · ${users.providers} providers`}
               />
               <StatCard
                 title="Service Requests"
                 value={serviceRequests.total}
-                icon="📋"
+                icon="clipboard"
                 color="#f59e0b"
                 sub={`${serviceRequests.open} open · ${serviceRequests.completed} completed`}
               />
               <StatCard
                 title="Total Bids"
                 value={bids.total}
-                icon="💰"
+                icon="currency"
                 color="#22c55e"
                 sub={`${bids.accepted} accepted · ${bids.pending} pending`}
               />
               <StatCard
                 title="Messages"
                 value={messages.total}
-                icon="💬"
+                icon="chat"
                 color="#3b82f6"
               />
             </div>
-            <div style={styles.cardRow}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Reviews"
                 value={reviews.total}
-                icon="⭐"
+                icon="star"
                 color="#eab308"
                 sub={`Avg rating: ${reviews.avgRating}`}
               />
               <StatCard
                 title="Avg Provider Rating"
                 value={providers.avgRating}
-                icon="🏅"
+                icon="medal"
                 color="#ec4899"
               />
               <StatCard
                 title="Admins"
                 value={users.admins}
-                icon="🛡️"
+                icon="shield"
                 color="#14b8a6"
               />
             </div>
-            <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+            <div className="flex gap-5 flex-wrap">
               <DonutChart
                 title="Users by Role"
                 data={[
@@ -1223,38 +865,37 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* SERVICE REQUESTS */}
         {activeTab === "requests" && (
-          <div style={styles.section}>
-            <div style={styles.cardRow}>
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
               <StatCard
                 title="Total"
                 value={serviceRequests.total}
-                icon="📋"
+                icon="clipboard"
                 color="#6366f1"
               />
               <StatCard
                 title="Open"
                 value={serviceRequests.open}
-                icon="🟣"
+                icon="clipboard"
                 color="#6366f1"
               />
               <StatCard
                 title="In Progress"
                 value={serviceRequests.inProgress}
-                icon="🟡"
+                icon="clock"
                 color="#f59e0b"
               />
               <StatCard
                 title="Completed"
                 value={serviceRequests.completed}
-                icon="🟢"
+                icon="check"
                 color="#22c55e"
               />
               <StatCard
                 title="Cancelled"
                 value={serviceRequests.cancelled}
-                icon="🔴"
+                icon="x"
                 color="#ef4444"
               />
             </div>
@@ -1272,10 +913,7 @@ export default function AdminDashboard() {
               rows={recent.serviceRequests.map((r) => [
                 r.title || "—",
                 r.category || "—",
-                badge(
-                  r.service_status,
-                  statusColor[r.service_status] || "#6366f1",
-                ),
+                badge(r.service_status),
                 r.suggested_budget ? `Rs. ${r.suggested_budget}` : "—",
                 r.location || "—",
                 r.customer?.username || "—",
@@ -1285,32 +923,31 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* BIDS */}
         {activeTab === "bids" && (
-          <div style={styles.section}>
-            <div style={styles.cardRow}>
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Total Bids"
                 value={bids.total}
-                icon="💰"
+                icon="currency"
                 color="#22c55e"
               />
               <StatCard
                 title="Pending"
                 value={bids.pending}
-                icon="⏳"
+                icon="clock"
                 color="#f59e0b"
               />
               <StatCard
                 title="Accepted"
                 value={bids.accepted}
-                icon="✅"
+                icon="check"
                 color="#22c55e"
               />
               <StatCard
                 title="Rejected"
                 value={bids.rejected}
-                icon="❌"
+                icon="x"
                 color="#ef4444"
               />
             </div>
@@ -1327,7 +964,7 @@ export default function AdminDashboard() {
               rows={recent.bids.map((b) => [
                 b.provider?.username || "—",
                 b.amount ? `Rs. ${b.amount}` : "—",
-                badge(b.bid_status, statusColor[b.bid_status] || "#6b6b8a"),
+                badge(b.bid_status),
                 b.service_request?.title || "—",
                 b.availability || "—",
                 fmt(b.createdAt),
@@ -1336,17 +973,16 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* RECENT ACTIVITY */}
         {activeTab === "activity" && (
-          <div style={styles.section}>
+          <div className="flex flex-col gap-6">
             <RecentTable
               title="Recent Users"
               columns={["Username", "Email", "Role", "Confirmed", "Joined"]}
               rows={recent.users.map((u) => [
                 u.username || "—",
                 u.email || "—",
-                badge(u.roleType, roleColor[u.roleType] || "#6b6b8a"),
-                u.confirmed ? badge("Yes", "#22c55e") : badge("No", "#ef4444"),
+                badge(u.roleType),
+                u.confirmed ? badge("active") : badge("blocked"),
                 fmt(u.createdAt),
               ])}
             />
@@ -1355,7 +991,7 @@ export default function AdminDashboard() {
               columns={["Customer", "Rating", "Comment", "Specialty", "Date"]}
               rows={recent.reviews.map((r) => [
                 r.customer?.username || "—",
-                "⭐".repeat(Math.min(Math.round(r.rating || 0), 5)),
+                "★".repeat(Math.min(Math.round(r.rating || 0), 5)),
                 r.comment
                   ? r.comment.slice(0, 60) + (r.comment.length > 60 ? "…" : "")
                   : "—",
@@ -1375,7 +1011,7 @@ export default function AdminDashboard() {
               rows={recent.bids.map((b) => [
                 b.provider?.username || "—",
                 b.amount ? `Rs. ${b.amount}` : "—",
-                badge(b.bid_status, statusColor[b.bid_status] || "#6b6b8a"),
+                badge(b.bid_status),
                 b.service_request?.title || "—",
                 fmt(b.createdAt),
               ])}
@@ -1383,76 +1019,36 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* PENDING APPROVALS */}
         {activeTab === "approvals" && (
-          <div style={styles.section}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                background: "#1e1e2e",
-                borderRadius: 14,
-                padding: "16px 24px",
-              }}
-            >
-              <div style={{ color: "#e0e0f0", fontWeight: 700, fontSize: 16 }}>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-4">
+              <div className="text-white font-semibold text-sm">
                 Pending Registrations
               </div>
-              <div
-                style={{
-                  background: "#f59e0b22",
-                  color: "#f59e0b",
-                  borderRadius: 20,
-                  padding: "3px 14px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
+              <div className="bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
                 {pendingUsers.length} pending
               </div>
               <button
                 onClick={fetchPendingUsers}
-                style={{
-                  marginLeft: "auto",
-                  background: "#2a2a3e",
-                  border: "none",
-                  color: "#6b6b8a",
-                  borderRadius: 8,
-                  padding: "6px 14px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                }}
+                className="ml-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-1.5 text-xs transition-colors cursor-pointer"
               >
-                🔄 Refresh
+                Refresh
               </button>
             </div>
 
             {pendingLoading && (
-              <div
-                style={{ textAlign: "center", color: "#6b6b8a", padding: 40 }}
-              >
-                <div style={{ ...styles.spinner, margin: "0 auto 12px" }} />
-                Loading pending users...
+              <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+                <div className="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin mb-3" />
+                <span className="text-sm">Loading pending users...</span>
               </div>
             )}
 
             {!pendingLoading && pendingUsers.length === 0 && (
-              <div
-                style={{
-                  background: "#1e1e2e",
-                  borderRadius: 14,
-                  padding: 48,
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                <div
-                  style={{ color: "#e0e0f0", fontWeight: 600, fontSize: 16 }}
-                >
-                  All caught up!
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
+                <div className="text-white font-semibold text-base">
+                  All caught up
                 </div>
-                <div style={{ color: "#6b6b8a", fontSize: 13, marginTop: 6 }}>
+                <div className="text-zinc-500 text-sm mt-1">
                   No pending registrations at the moment.
                 </div>
               </div>
@@ -1461,113 +1057,43 @@ export default function AdminDashboard() {
             {pendingUsers.map((u) => (
               <div
                 key={u.id}
-                style={{
-                  background: "#1e1e2e",
-                  borderRadius: 14,
-                  padding: 24,
-                  border: "1px solid #2a2a3e",
-                }}
+                className="bg-zinc-900 border border-zinc-800 rounded-xl p-6"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 20,
-                    flexWrap: "wrap",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 220 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        marginBottom: 14,
-                      }}
-                    >
+                <div className="flex gap-6 flex-wrap items-start">
+                  <div className="flex-1 min-w-56">
+                    <div className="flex items-center gap-3 mb-4">
                       <div
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: "50%",
-                          background:
-                            u.roleType === "provider" ? "#8b5cf6" : "#6366f1",
-                          color: "#fff",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontWeight: 700,
-                          fontSize: 18,
-                          flexShrink: 0,
-                        }}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-lg text-white flex-shrink-0 ${u.roleType === "provider" ? "bg-violet-600" : "bg-indigo-600"}`}
                       >
                         {u.username?.[0]?.toUpperCase() || "U"}
                       </div>
                       <div>
-                        <div
-                          style={{
-                            color: "#fff",
-                            fontWeight: 700,
-                            fontSize: 15,
-                          }}
-                        >
+                        <div className="text-white font-semibold text-sm">
                           {u.username}
                         </div>
-                        <div style={{ color: "#6b6b8a", fontSize: 12 }}>
-                          {u.email}
-                        </div>
+                        <div className="text-zinc-500 text-xs">{u.email}</div>
                       </div>
-                      {badge(u.roleType, roleColor[u.roleType] || "#6366f1")}
+                      {badge(u.roleType)}
                     </div>
 
-                    <div
-                      style={{
-                        background: "#13131f",
-                        borderRadius: 10,
-                        padding: 14,
-                        marginBottom: 14,
-                      }}
-                    >
-                      <div
-                        style={{
-                          color: "#6b6b8a",
-                          fontSize: 11,
-                          marginBottom: 8,
-                          fontWeight: 600,
-                        }}
-                      >
-                        UPLOADED DOCUMENTS ({u.documentations?.length || 0})
+                    <div className="bg-zinc-950 rounded-xl p-4 mb-4">
+                      <div className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-3">
+                        Uploaded Documents ({u.documentations?.length || 0})
                       </div>
-                      {!u.documentations || u.documentations.length === 0 ? (
-                        <div style={{ color: "#ef4444", fontSize: 12 }}>
-                          ⚠️ No documents uploaded
+                      {!u.documentations?.length ? (
+                        <div className="text-red-400 text-xs">
+                          No documents uploaded
                         </div>
                       ) : (
                         u.documentations.map((doc) => (
                           <div
                             key={doc.id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8,
-                              marginBottom: 6,
-                            }}
+                            className="flex items-center gap-2 mb-1.5"
                           >
-                            <span style={{ fontSize: 14 }}>
-                              {doc.documentType === "citizenship" && "🪪"}
-                              {doc.documentType === "passport" && "📘"}
-                              {doc.documentType === "certificate" && "📜"}
-                            </span>
-                            <span
-                              style={{
-                                color: "#c0c0d8",
-                                fontSize: 13,
-                                textTransform: "capitalize",
-                              }}
-                            >
+                            <span className="text-zinc-300 text-xs capitalize">
                               {doc.documentType}
                             </span>
-                            <span style={{ color: "#6b6b8a", fontSize: 11 }}>
+                            <span className="text-zinc-600 text-xs">
                               · {doc.file?.ext?.toUpperCase() || "FILE"}
                             </span>
                           </div>
@@ -1577,69 +1103,28 @@ export default function AdminDashboard() {
 
                     <button
                       onClick={() => setSelectedUser(u)}
-                      style={{
-                        width: "100%",
-                        background: "#6366f122",
-                        color: "#6366f1",
-                        border: "1px solid #6366f144",
-                        borderRadius: 8,
-                        padding: "9px 16px",
-                        cursor: "pointer",
-                        fontSize: 13,
-                        fontWeight: 600,
-                      }}
+                      className="w-full bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg py-2.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors cursor-pointer"
                     >
-                      🔍 View Full Details & Documents
+                      View Full Details
                     </button>
                   </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                      minWidth: 200,
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#6b6b8a",
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    >
-                      ACTIONS
+                  <div className="flex flex-col gap-3 min-w-52">
+                    <div className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest">
+                      Actions
                     </div>
                     <button
                       onClick={() => handleApprove(u.id)}
                       disabled={actionLoading === u.id + "_approve"}
-                      style={{
-                        background: "#22c55e",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 8,
-                        padding: "11px 20px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        fontSize: 13,
-                        opacity: actionLoading === u.id + "_approve" ? 0.6 : 1,
-                      }}
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg py-2.5 text-xs font-semibold transition-colors cursor-pointer"
                     >
                       {actionLoading === u.id + "_approve"
                         ? "Approving..."
-                        : "✓ Approve Account"}
+                        : "Approve Account"}
                     </button>
 
-                    <div
-                      style={{ borderTop: "1px solid #2a2a3e", paddingTop: 10 }}
-                    >
-                      <div
-                        style={{
-                          color: "#6b6b8a",
-                          fontSize: 11,
-                          marginBottom: 6,
-                        }}
-                      >
+                    <div className="border-t border-zinc-800 pt-3">
+                      <div className="text-zinc-500 text-xs mb-2">
                         Rejection reason (optional)
                       </div>
                       <textarea
@@ -1652,39 +1137,16 @@ export default function AdminDashboard() {
                           })
                         }
                         rows={3}
-                        style={{
-                          width: "100%",
-                          background: "#13131f",
-                          border: "1px solid #2a2a3e",
-                          borderRadius: 8,
-                          padding: "8px 12px",
-                          color: "#e0e0f0",
-                          fontSize: 12,
-                          outline: "none",
-                          resize: "vertical",
-                          boxSizing: "border-box",
-                        }}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 text-xs outline-none resize-vertical focus:border-zinc-600 transition-colors"
                       />
                       <button
                         onClick={() => handleReject(u.id)}
                         disabled={actionLoading === u.id + "_reject"}
-                        style={{
-                          width: "100%",
-                          background: "#ef4444",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: 8,
-                          padding: "11px 20px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          fontSize: 13,
-                          marginTop: 8,
-                          opacity: actionLoading === u.id + "_reject" ? 0.6 : 1,
-                        }}
+                        className="w-full mt-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg py-2.5 text-xs font-semibold transition-colors cursor-pointer"
                       >
                         {actionLoading === u.id + "_reject"
                           ? "Rejecting..."
-                          : "✗ Reject Account"}
+                          : "Reject Account"}
                       </button>
                     </div>
                   </div>
@@ -1694,73 +1156,31 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ALL USERS */}
         {activeTab === "users" && (
-          <div style={styles.section}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                background: "#1e1e2e",
-                borderRadius: 14,
-                padding: "16px 24px",
-              }}
-            >
-              <div style={{ color: "#e0e0f0", fontWeight: 700, fontSize: 16 }}>
-                All Users
-              </div>
-              <div
-                style={{
-                  background: "#6366f122",
-                  color: "#6366f1",
-                  borderRadius: 20,
-                  padding: "3px 14px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4 bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-4">
+              <div className="text-white font-semibold text-sm">All Users</div>
+              <div className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
                 {allUsers.length} users
               </div>
               <button
                 onClick={fetchAllUsers}
-                style={{
-                  marginLeft: "auto",
-                  background: "#2a2a3e",
-                  border: "none",
-                  color: "#6b6b8a",
-                  borderRadius: 8,
-                  padding: "6px 14px",
-                  cursor: "pointer",
-                  fontSize: 12,
-                }}
+                className="ml-auto bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-1.5 text-xs transition-colors cursor-pointer"
               >
-                🔄 Refresh
+                Refresh
               </button>
             </div>
 
             {allUsersLoading && (
-              <div
-                style={{ textAlign: "center", color: "#6b6b8a", padding: 40 }}
-              >
-                <div style={{ ...styles.spinner, margin: "0 auto 12px" }} />
-                Loading users...
+              <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+                <div className="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin mb-3" />
+                <span className="text-sm">Loading users...</span>
               </div>
             )}
 
             {!allUsersLoading && allUsers.length === 0 && (
-              <div
-                style={{
-                  background: "#1e1e2e",
-                  borderRadius: 14,
-                  padding: 48,
-                  textAlign: "center",
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 12 }}>👥</div>
-                <div
-                  style={{ color: "#e0e0f0", fontWeight: 600, fontSize: 16 }}
-                >
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
+                <div className="text-white font-semibold text-base">
                   No users found
                 </div>
               </div>
@@ -1770,182 +1190,68 @@ export default function AdminDashboard() {
               allUsers.map((u) => (
                 <div
                   key={u.id}
-                  style={{
-                    background: "#1e1e2e",
-                    borderRadius: 14,
-                    padding: "16px 24px",
-                    border: "1px solid #2a2a3e",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    flexWrap: "wrap",
-                  }}
+                  className="bg-zinc-900 border border-zinc-800 rounded-xl px-6 py-4 flex items-center gap-4 flex-wrap"
                 >
                   <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: "50%",
-                      background:
-                        u.roleType === "provider" ? "#8b5cf6" : "#6366f1",
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: 16,
-                      flexShrink: 0,
-                    }}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm text-white flex-shrink-0 ${u.roleType === "provider" ? "bg-violet-600" : "bg-indigo-600"}`}
                   >
                     {u.username?.[0]?.toUpperCase() || "U"}
                   </div>
-
-                  <div style={{ flex: 1, minWidth: 160 }}>
-                    <div
-                      style={{ color: "#fff", fontWeight: 600, fontSize: 14 }}
-                    >
+                  <div className="flex-1 min-w-40">
+                    <div className="text-white font-medium text-sm">
                       {u.username}
                     </div>
-                    <div style={{ color: "#6b6b8a", fontSize: 12 }}>
-                      {u.email}
-                    </div>
+                    <div className="text-zinc-500 text-xs">{u.email}</div>
                   </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {badge(u.roleType, roleColor[u.roleType] || "#6366f1")}
-                    {badge(
-                      u.approvalStatus,
-                      u.approvalStatus === "approved"
-                        ? "#22c55e"
-                        : u.approvalStatus === "rejected"
-                          ? "#ef4444"
-                          : "#f59e0b",
-                    )}
-                    {u.blocked && badge("blocked", "#ef4444")}
+                  <div className="flex gap-2 items-center flex-wrap">
+                    {badge(u.roleType)}
+                    {badge(u.approvalStatus)}
+                    {u.blocked && badge("blocked")}
                   </div>
-
-                  <div style={{ color: "#6b6b8a", fontSize: 12, minWidth: 90 }}>
+                  <div className="text-zinc-500 text-xs min-w-20">
                     {fmt(u.createdAt)}
                   </div>
-
-                  {/* Action buttons */}
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {/* Details */}
+                  <div className="flex gap-2 items-center flex-wrap">
                     <button
                       onClick={() => setSelectedUser(u)}
-                      style={{
-                        background: "#6366f122",
-                        color: "#6366f1",
-                        border: "1px solid #6366f144",
-                        borderRadius: 8,
-                        padding: "7px 14px",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
+                      className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors cursor-pointer"
                     >
-                      🔍 Details
+                      Details
                     </button>
-
-                    {/* Block / Unblock */}
                     {u.blocked ? (
                       <button
                         onClick={() => handleUnblockUser(u.id)}
                         disabled={actionLoading === u.id + "_unblock"}
-                        style={{
-                          background: "#22c55e22",
-                          color: "#22c55e",
-                          border: "1px solid #22c55e44",
-                          borderRadius: 8,
-                          padding: "7px 14px",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          opacity:
-                            actionLoading === u.id + "_unblock" ? 0.6 : 1,
-                        }}
+                        className="bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 transition-colors cursor-pointer"
                       >
                         {actionLoading === u.id + "_unblock"
                           ? "..."
-                          : "🔓 Unblock"}
+                          : "Unblock"}
                       </button>
                     ) : (
                       <button
                         onClick={() => handleBlockUser(u.id)}
                         disabled={actionLoading === u.id + "_block"}
-                        style={{
-                          background: "#f59e0b22",
-                          color: "#f59e0b",
-                          border: "1px solid #f59e0b44",
-                          borderRadius: 8,
-                          padding: "7px 14px",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 600,
-                          opacity: actionLoading === u.id + "_block" ? 0.6 : 1,
-                        }}
+                        className="bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-amber-500/20 disabled:opacity-50 transition-colors cursor-pointer"
                       >
-                        {actionLoading === u.id + "_block" ? "..." : "🔒 Block"}
+                        {actionLoading === u.id + "_block" ? "..." : "Block"}
                       </button>
                     )}
-
-                    {/* Delete */}
                     {deleteConfirm === u.id ? (
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: 8,
-                          alignItems: "center",
-                        }}
-                      >
-                        <span style={{ color: "#f59e0b", fontSize: 12 }}>
-                          Sure?
-                        </span>
+                      <div className="flex gap-2 items-center">
+                        <span className="text-amber-400 text-xs">Confirm?</span>
                         <button
                           onClick={() => handleDeleteUser(u.id)}
                           disabled={actionLoading === u.id + "_delete"}
-                          style={{
-                            background: "#ef4444",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: 6,
-                            padding: "6px 14px",
-                            cursor: "pointer",
-                            fontSize: 12,
-                            fontWeight: 600,
-                            opacity:
-                              actionLoading === u.id + "_delete" ? 0.6 : 1,
-                          }}
+                          className="bg-red-600 hover:bg-red-500 text-white rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 transition-colors cursor-pointer"
                         >
                           {actionLoading === u.id + "_delete"
                             ? "Deleting..."
-                            : "Yes, delete"}
+                            : "Delete"}
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(null)}
-                          style={{
-                            background: "#2a2a3e",
-                            color: "#e0e0f0",
-                            border: "none",
-                            borderRadius: 6,
-                            padding: "6px 14px",
-                            cursor: "pointer",
-                            fontSize: 12,
-                          }}
+                          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg px-3 py-1.5 text-xs transition-colors cursor-pointer"
                         >
                           Cancel
                         </button>
@@ -1953,18 +1259,9 @@ export default function AdminDashboard() {
                     ) : (
                       <button
                         onClick={() => setDeleteConfirm(u.id)}
-                        style={{
-                          background: "#ef444422",
-                          color: "#ef4444",
-                          border: "1px solid #ef444444",
-                          borderRadius: 8,
-                          padding: "7px 14px",
-                          cursor: "pointer",
-                          fontSize: 12,
-                          fontWeight: 600,
-                        }}
+                        className="bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-500/20 transition-colors cursor-pointer"
                       >
-                        🗑 Remove
+                        Remove
                       </button>
                     )}
                   </div>
@@ -1976,111 +1273,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-
-const styles = {
-  page: {
-    display: "flex",
-    minHeight: "100vh",
-    background: "#13131f",
-    fontFamily: "'Inter', sans-serif",
-  },
-  sidebar: {
-    width: 230,
-    background: "#1a1a2e",
-    borderRight: "1px solid #2a2a3e",
-    flexShrink: 0,
-    position: "sticky",
-    top: 0,
-    height: "100vh",
-    overflowY: "auto",
-  },
-  logo: {
-    width: 36,
-    height: 36,
-    background: "#6366f1",
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 18,
-  },
-  adminBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    background: "#13131f",
-    borderRadius: 10,
-    padding: "10px 12px",
-  },
-  adminAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: "50%",
-    background: "#6366f1",
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 700,
-    fontSize: 14,
-    flexShrink: 0,
-  },
-  navBtn: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    width: "100%",
-    textAlign: "left",
-    padding: "10px 14px",
-    border: "none",
-    cursor: "pointer",
-    borderRadius: 8,
-    marginBottom: 4,
-    fontSize: 13,
-    fontWeight: 500,
-    transition: "all 0.2s",
-  },
-  main: { flex: 1, padding: "28px 32px", overflowY: "auto" },
-  header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 28,
-  },
-  liveBadge: {
-    background: "#22c55e22",
-    color: "#22c55e",
-    borderRadius: 20,
-    padding: "6px 16px",
-    fontSize: 13,
-    fontWeight: 600,
-  },
-  section: { display: "flex", flexDirection: "column", gap: 20 },
-  cardRow: { display: "flex", gap: 16, flexWrap: "wrap" },
-  centered: {
-    minHeight: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#13131f",
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: "3px solid #2a2a3e",
-    borderTop: "3px solid #6366f1",
-    borderRadius: "50%",
-    animation: "spin 0.8s linear infinite",
-  },
-  retryBtn: {
-    marginTop: 16,
-    padding: "8px 20px",
-    background: "#6366f1",
-    color: "#fff",
-    border: "none",
-    borderRadius: 8,
-    cursor: "pointer",
-    fontSize: 13,
-  },
-};

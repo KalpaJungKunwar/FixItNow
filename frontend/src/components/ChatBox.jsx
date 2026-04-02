@@ -10,7 +10,6 @@ export default function ChatBox({ requestId, currentUser }) {
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);
 
-  // ── Fetch history on mount ──────────────────────────────────────────
   useEffect(() => {
     const fetchHistory = async () => {
       try {
@@ -20,7 +19,7 @@ export default function ChatBox({ requestId, currentUser }) {
         );
         const data = await res.json();
         const history = (data.data || []).map((m) => ({
-          senderId: m.sender?.id, // will now be populated
+          senderId: m.sender?.id,
           senderName: m.sender_name,
           message: m.msg,
           timestamp: m.createdAt,
@@ -34,13 +33,11 @@ export default function ChatBox({ requestId, currentUser }) {
     fetchHistory();
   }, [requestId]);
 
-  // ── Socket listeners ────────────────────────────────────────────────
   useEffect(() => {
     const socket = socketRef.current;
     socket.emit("join_room", requestId);
 
     const handleMessage = (msg) => {
-      // Only add message if it belongs to this room
       if (msg.requestId === requestId) {
         setMessages((prev) => [...prev, msg]);
       }
@@ -50,7 +47,7 @@ export default function ChatBox({ requestId, currentUser }) {
 
     return () => {
       socket.off("receive_message", handleMessage);
-      socket.emit("leave_room", requestId); 
+      socket.emit("leave_room", requestId);
     };
   }, [requestId]);
 
