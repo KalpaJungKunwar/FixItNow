@@ -11,6 +11,8 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import ProviderDashboard from "./pages/providerdashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import PendingApproval from "./pages/PendingApproval";
+import PaymentSuccess from "./pages/payment/PaymentSuccess";
+import PaymentFailed from "./pages/payment/PaymentFailed";
 
 const NO_LAYOUT_ROUTES = ["/providerdashboard", "/admin"];
 
@@ -67,6 +69,11 @@ function App() {
               <AdminDashboard />
             </ProtectedRoute>
           } />
+
+          {/* Payment */}
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+          <Route path="/payment/failed" element={<PaymentFailed />} />
+          <Route path="/payment/verify" element={<PaymentSuccess />} />
         </Routes>
       </Layout>
     </BrowserRouter>

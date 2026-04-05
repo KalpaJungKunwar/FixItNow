@@ -479,7 +479,7 @@ export interface ApiDocumentationDocumentation
     singularName: 'documentation';
   };
   options: {
-    draftAndPublish: true;
+    draftAndPublish: false;
   };
   attributes: {
     approvalStatus: Schema.Attribute.Enumeration<
@@ -548,6 +548,48 @@ export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
   };
 }
 
+export interface ApiPaymentPayment extends Struct.CollectionTypeSchema {
+  collectionName: 'payments';
+  info: {
+    displayName: 'Payment';
+    pluralName: 'payments';
+    singularName: 'payment';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    amount: Schema.Attribute.Decimal & Schema.Attribute.Required;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::payment.payment'
+    > &
+      Schema.Attribute.Private;
+    paymentStatus: Schema.Attribute.Enumeration<
+      ['pending', 'completed', 'failed']
+    > &
+      Schema.Attribute.Required;
+    pidx: Schema.Attribute.String & Schema.Attribute.Required;
+    publishedAt: Schema.Attribute.DateTime;
+    service_request: Schema.Attribute.Relation<
+      'oneToOne',
+      'api::service-request.service-request'
+    >;
+    transaction_id: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    user: Schema.Attribute.Relation<
+      'oneToOne',
+      'plugin::users-permissions.user'
+    >;
+  };
+}
+
 export interface ApiProviderProfileProviderProfile
   extends Struct.CollectionTypeSchema {
   collectionName: 'provider_profiles';
@@ -574,7 +616,7 @@ export interface ApiProviderProfileProviderProfile
       Schema.Attribute.Private;
     location: Schema.Attribute.String & Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
-    rating: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
+    rating: Schema.Attribute.Decimal & Schema.Attribute.DefaultTo<0>;
     reviews: Schema.Attribute.Relation<'oneToMany', 'api::review.review'>;
     services_offered: Schema.Attribute.JSON;
     specialty: Schema.Attribute.Enumeration<
@@ -596,6 +638,47 @@ export interface ApiProviderProfileProviderProfile
       'oneToOne',
       'plugin::users-permissions.user'
     >;
+  };
+}
+
+export interface ApiProviderSubscriptionProviderSubscription
+  extends Struct.CollectionTypeSchema {
+  collectionName: 'provider_subscriptions';
+  info: {
+    displayName: 'provider_subscription';
+    pluralName: 'provider-subscriptions';
+    singularName: 'provider-subscription';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    amount: Schema.Attribute.Decimal;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    expires_at: Schema.Attribute.DateTime;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::provider-subscription.provider-subscription'
+    > &
+      Schema.Attribute.Private;
+    pidx: Schema.Attribute.String;
+    plan: Schema.Attribute.Enumeration<['monthly', 'yearly']>;
+    provider: Schema.Attribute.Relation<
+      'manyToOne',
+      'plugin::users-permissions.user'
+    >;
+    publishedAt: Schema.Attribute.DateTime;
+    starts_at: Schema.Attribute.DateTime;
+    subscriptionStatus: Schema.Attribute.Enumeration<
+      ['pending', 'active', 'expired', 'failed']
+    >;
+    transaction_id: Schema.Attribute.String;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
   };
 }
 
@@ -1203,6 +1286,10 @@ export interface PluginUsersPermissionsUser
       'oneToOne',
       'api::provider-profile.provider-profile'
     >;
+    provider_subscriptions: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::provider-subscription.provider-subscription'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     resetPasswordToken: Schema.Attribute.String & Schema.Attribute.Private;
     reviews: Schema.Attribute.Relation<'oneToMany', 'api::review.review'>;
@@ -1239,7 +1326,9 @@ declare module '@strapi/strapi' {
       'api::bid.bid': ApiBidBid;
       'api::documentation.documentation': ApiDocumentationDocumentation;
       'api::message.message': ApiMessageMessage;
+      'api::payment.payment': ApiPaymentPayment;
       'api::provider-profile.provider-profile': ApiProviderProfileProviderProfile;
+      'api::provider-subscription.provider-subscription': ApiProviderSubscriptionProviderSubscription;
       'api::review.review': ApiReviewReview;
       'api::service-request.service-request': ApiServiceRequestServiceRequest;
       'plugin::content-releases.release': PluginContentReleasesRelease;

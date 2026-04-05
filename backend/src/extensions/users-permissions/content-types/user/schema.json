@@ -103,6 +103,12 @@
       "relation": "oneToMany",
       "target": "api::documentation.documentation",
       "mappedBy": "user"
+    },
+    "provider_subscriptions": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::provider-subscription.provider-subscription",
+      "mappedBy": "provider"
     }
   }
 }

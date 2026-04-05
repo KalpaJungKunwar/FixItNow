@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "payments",
+  "info": {
+    "singularName": "payment",
+    "pluralName": "payments",
+    "displayName": "Payment"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "pidx": {
+      "type": "string",
+      "required": true
+    },
+    "amount": {
+      "type": "decimal",
+      "required": true
+    },
+    "paymentStatus": {
+      "type": "enumeration",
+      "required": true,
+      "enum": [
+        "pending",
+        "completed",
+        "failed"
+      ]
+    },
+    "transaction_id": {
+      "type": "string"
+    },
+    "service_request": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "api::service-request.service-request"
+    },
+    "user": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "plugin::users-permissions.user"
+    }
+  }
+}

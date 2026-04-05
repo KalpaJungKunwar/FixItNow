@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect, useRef } from "react";
 import ChatBox from "../components/ChatBox";
@@ -311,11 +311,9 @@ function avatarColor(str) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-// ─── Location Map Modal ───────────────────────────────────────────────────────
 function LocationMapModal({ lat, lng, title, onClose }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-
   useEffect(() => {
     if (!document.getElementById("leaflet-css")) {
       const link = document.createElement("link");
@@ -373,7 +371,6 @@ function LocationMapModal({ lat, lng, title, onClose }) {
       }
     };
   }, [lat, lng]);
-
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
@@ -416,7 +413,6 @@ function LocationMapModal({ lat, lng, title, onClose }) {
   );
 }
 
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
 function Sidebar({ active, setActive, user, profile }) {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -515,7 +511,6 @@ function EmptyState({ Icon, title, sub }) {
   );
 }
 
-// ─── Request Card ─────────────────────────────────────────────────────────────
 function RequestCard({ request, myBids, onBid, compact }) {
   const attrs = a(request);
   const customer = attrs.customer?.data
@@ -524,11 +519,19 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const username = customer?.username || "Customer";
   const colorClass = avatarColor(username);
   const specialty = SPECIALTIES.find((s) => s.value === attrs.category);
-  const alreadyBid = myBids.some((b) => {
-    const sreq = a(b).service_request;
-    const rid = sreq?.data?.id ?? sreq?.id;
-    return rid === request.id;
-  });
+ const alreadyBid = myBids.some((b) => {
+  const sr = b?.service_request ?? b?.attributes?.service_request;
+  const rid = sr?.data?.id ?? sr?.id ?? sr?.data?.attributes?.id;
+  const rDocId =
+    sr?.data?.documentId ??
+    sr?.documentId ??
+    sr?.data?.attributes?.documentId;
+  return (
+    rid === request.id ||
+    (rDocId != null &&
+      rDocId === (request.documentId ?? request.attributes?.documentId))
+  );
+});
 
   const [bidAmount, setBidAmount] = useState(
     attrs.suggested_budget ? Math.round(attrs.suggested_budget * 0.92) : "",
@@ -769,13 +772,30 @@ function RequestCard({ request, myBids, onBid, compact }) {
   );
 }
 
-// ─── Dashboard Tab ────────────────────────────────────────────────────────────
-function DashboardTab({ profile, myBids, nearbyRequests, user, onNavigate }) {
+function DashboardTab({
+  profile,
+  myBids,
+  nearbyRequests,
+  user,
+  onNavigate,
+  payments,
+}) {
+  const paidServiceRequestIds = new Set(
+    payments
+      .filter((p) => p.paymentStatus === "completed")
+      .map((p) => p.service_request?.documentId)
+      .filter(Boolean),
+  );
   const earnings = myBids
-    .filter((b) => a(b).bid_status === "accepted")
+    .filter(
+      (b) =>
+        a(b).bid_status === "accepted" &&
+        paidServiceRequestIds.has(b.service_request?.documentId),
+    )
     .reduce((s, b) => s + (a(b).amount || 0), 0);
   const activeBids = myBids.filter((b) => a(b).bid_status === "pending").length;
   const username = user?.username || "Provider";
+
   return (
     <div>
       <div className="flex items-start justify-between mb-7">
@@ -799,17 +819,15 @@ function DashboardTab({ profile, myBids, nearbyRequests, user, onNavigate }) {
       </div>
       <div className="flex gap-4 mb-8 flex-wrap">
         <StatCard
-          label="Total Earnings"
+          label="Total Earned"
           value={`Rs. ${earnings.toLocaleString()}`}
+          sub={`${paidServiceRequestIds.size} job${paidServiceRequestIds.size !== 1 ? "s" : ""} paid`}
         />
-
         <StatCard label="Active Bids" value={activeBids} />
         <StatCard
           label="Your Rating"
           value={
-            profile?.rating > 0
-              ? `${Number(profile.rating).toFixed(1)} `
-              : "—"
+            profile?.rating > 0 ? `${Number(profile.rating).toFixed(1)}` : "—"
           }
           accent="text-amber-500"
         />
@@ -853,7 +871,6 @@ function DashboardTab({ profile, myBids, nearbyRequests, user, onNavigate }) {
   );
 }
 
-// ─── Find Requests Tab ────────────────────────────────────────────────────────
 function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
   const [filter, setFilter] = useState("all");
   const specialty = profile?.specialty;
@@ -923,16 +940,21 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
   );
 }
 
-// ─── My Bids Tab ──────────────────────────────────────────────────────────────
 const BIDS_PER_PAGE = 3;
 
-function MyBidsTab({ providerId }) {
+function MyBidsTab({ providerId, payments }) {
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mapModal, setMapModal] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [openChatId, setOpenChatId] = useState(null);
   const watchIds = useRef({});
+
+  const paymentByRequestId = {};
+  payments.forEach((p) => {
+    if (p.service_request?.documentId)
+      paymentByRequestId[p.service_request.documentId] = p;
+  });
 
   useEffect(() => {
     fetchMyBids();
@@ -1063,6 +1085,10 @@ function MyBidsTab({ providerId }) {
                   const isCompleted = sr.service_status === "completed";
                   const isSharing = !!watchIds.current[reqDocumentId];
                   const isChatOpen = openChatId === reqDocumentId;
+                  const payment = reqDocumentId
+                    ? paymentByRequestId[reqDocumentId]
+                    : null;
+                  const paymentStatus = payment?.paymentStatus ?? null;
 
                   const bidStatusStyle = {
                     pending: "bg-yellow-100 text-yellow-700",
@@ -1075,6 +1101,11 @@ function MyBidsTab({ providerId }) {
                     awaiting_confirmation: "bg-purple-100 text-purple-700",
                     completed: "bg-emerald-100 text-emerald-700",
                     cancelled: "bg-red-100 text-red-600",
+                  };
+                  const paymentBadgeStyle = {
+                    completed: "bg-green-100 text-green-700",
+                    pending: "bg-yellow-100 text-yellow-700",
+                    failed: "bg-red-100 text-red-600",
                   };
 
                   return (
@@ -1103,6 +1134,13 @@ function MyBidsTab({ providerId }) {
                             Job:{" "}
                             {sr.service_status?.replace("_", " ").toUpperCase()}
                           </span>
+                          {paymentStatus && (
+                            <span
+                              className={`text-xs font-semibold px-3 py-1 rounded-full ${paymentBadgeStyle[paymentStatus] ?? "bg-gray-100 text-gray-600"}`}
+                            >
+                              💳 Payment: {paymentStatus.toUpperCase()}
+                            </span>
+                          )}
                         </div>
                       </div>
                       <div className="flex justify-between text-sm text-gray-600 mb-3 bg-gray-50 rounded-xl px-4 py-3">
@@ -1119,6 +1157,13 @@ function MyBidsTab({ providerId }) {
                           </strong>
                         </span>
                       </div>
+                      {paymentStatus === "completed" && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 mb-3">
+                          <span className="text-xs font-bold text-green-700">
+                            ✓ Rs. {bid.amount?.toLocaleString()} received
+                          </span>
+                        </div>
+                      )}
                       {sr.customer_lat && sr.customer_lng && (
                         <button
                           onClick={() =>
@@ -1158,7 +1203,6 @@ function MyBidsTab({ providerId }) {
                           >
                             Mark Completed
                           </button>
-                          {/* Message Button */}
                           <button
                             onClick={() =>
                               setOpenChatId(isChatOpen ? null : reqDocumentId)
@@ -1180,7 +1224,6 @@ function MyBidsTab({ providerId }) {
                           <CheckIcon className="w-3.5 h-3.5" /> Job completed
                         </div>
                       )}
-                      {/* Collapsible Chat Box */}
                       {(isInProgress ||
                         sr.service_status === "awaiting_confirmation") &&
                         reqDocumentId &&
@@ -1195,8 +1238,6 @@ function MyBidsTab({ providerId }) {
                     </div>
                   );
                 })}
-
-                {/* Pagination */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-center gap-2 mt-6">
                     <button
@@ -1211,11 +1252,7 @@ function MyBidsTab({ providerId }) {
                         <button
                           key={page}
                           onClick={() => setCurrentPage(page)}
-                          className={`w-8 h-8 rounded-lg border text-xs font-bold transition-all ${
-                            currentPage === page
-                              ? "bg-blue-500 border-blue-500 text-white shadow-sm"
-                              : "bg-white border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-500"
-                          }`}
+                          className={`w-8 h-8 rounded-lg border text-xs font-bold transition-all ${currentPage === page ? "bg-blue-500 border-blue-500 text-white shadow-sm" : "bg-white border-gray-200 text-gray-500 hover:border-blue-300 hover:text-blue-500"}`}
                         >
                           {page}
                         </button>
@@ -1241,7 +1278,6 @@ function MyBidsTab({ providerId }) {
   );
 }
 
-// ─── Profile Tab ──────────────────────────────────────────────────────────────
 function ProfileTab({ profile, user, onProfileSaved }) {
   const [form, setForm] = useState({
     specialty: profile?.specialty || "",
@@ -1352,18 +1388,15 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           </span>
         )}
       </div>
-
       <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mb-5 text-xs text-amber-700">
         <span className="font-semibold">Note:</span> Your rating is
         automatically updated based on customer reviews and cannot be edited
         manually.
       </div>
-
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-5">
           Edit Information
         </h3>
-
         <label className="block text-xs font-semibold text-gray-600 mb-2">
           Specialty *
         </label>
@@ -1389,7 +1422,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
             </button>
           ))}
         </div>
-
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">
           Location *
         </label>
@@ -1399,7 +1431,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
           placeholder="e.g. Kathmandu, Baneshwor"
         />
-
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">
           Bio
         </label>
@@ -1409,7 +1440,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400 resize-none h-24"
           placeholder="Describe your experience and expertise..."
         />
-
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">
           Services Offered{" "}
           <span className="text-gray-400 font-normal">(comma separated)</span>
@@ -1420,7 +1450,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
           placeholder="e.g. Leak Repair, Pipe Installation, Drain Cleaning"
         />
-
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1.5">
@@ -1447,7 +1476,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
             />
           </div>
         </div>
-
         {error && (
           <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600 mb-4">
             {error}
@@ -1470,48 +1498,132 @@ function ProfileTab({ profile, user, onProfileSaved }) {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Subscription Paywall ──────────────────────────────────────────────────
+function SubscriptionPaywall({ onSubscribe, loading }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-md w-full shadow-lg text-center">
+        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ShieldCheckIcon className="w-7 h-7 text-blue-500" />
+        </div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-2">
+          Activate Your Provider Account
+        </h2>
+        <p className="text-sm text-gray-500 mb-6">
+          A subscription is required to access the provider dashboard and
+          receive job bids.
+        </p>
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={() => onSubscribe("monthly")}
+            disabled={loading}
+            className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+          >
+            {loading ? "..." : "Monthly — Rs. 299"}
+          </button>
+          <button
+            onClick={() => onSubscribe("yearly")}
+            disabled={loading}
+            className="flex-1 bg-gray-900 hover:bg-gray-800 disabled:opacity-70 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+          >
+            {loading ? "..." : "Yearly — Rs. 2000"}
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          Payments processed securely via Khalti
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main ──────────────────────────────────────────────────────────────────
 export default function ProviderDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [allRequests, setAllRequests] = useState([]);
   const [myBids, setMyBids] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ── Subscription state ──
+  const [subStatus, setSubStatus] = useState(null);
+  const [subLoading, setSubLoading] = useState(true);
+  const [subInitiating, setSubInitiating] = useState(false);
 
   useEffect(() => {
     const u = getUser();
     setUser(u);
     if (u)
-      Promise.all([fetchProfile(u), fetchRequests(), fetchMyBids(u)]).finally(
-        () => setLoading(false),
-      );
+      Promise.all([
+        fetchProfile(u),
+        fetchRequests(),
+        fetchMyBids(u),
+        fetchPayments(u),
+      ]).finally(() => setLoading(false));
     else setLoading(false);
   }, []);
 
-  const fetchProfile = async (u) => {
-  try {
-    // First get the full user with their profile relation
-    const res = await fetch(
-      `${API_URL}/api/users/${u.id}?populate[provider_profile][populate]=*`,
-      { headers: { Authorization: `Bearer ${getToken()}` } },
-    );
-    const data = await res.json();
+  // Check subscription on mount
+  useEffect(() => {
+    const checkSub = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/subscriptions/status`, {
+          headers: { Authorization: `Bearer ${getToken()}` },
+        });
+        const data = await res.json();
+        setSubStatus(data);
+      } catch {
+        setSubStatus({ isActive: false });
+      } finally {
+        setSubLoading(false);
+      }
+    };
+    checkSub();
+  }, []);
 
-    const raw = data?.provider_profile;
-    if (!raw) {
-      console.warn("[fetchProfile] No profile found for user", u.id);
-      return;
+  const handleSubscribe = async (plan) => {
+    setSubInitiating(true);
+    try {
+      const res = await fetch(`${API_URL}/api/subscriptions/initiate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+      if (data.payment_url) window.location.href = data.payment_url;
+      else alert("Failed to initiate subscription. Please try again.");
+    } catch {
+      alert("Failed to initiate subscription. Please try again.");
+    } finally {
+      setSubInitiating(false);
     }
+  };
 
-    const p = raw.attributes ?? raw;
-    p.id = raw.id;
-    p.documentId = raw.documentId ?? raw.id;
-    setProfile(p);
+  const fetchProfile = async (u) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/api/users/${u.id}?populate[provider_profile][populate]=*`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const data = await res.json();
+      const raw = data?.provider_profile;
+      if (!raw) {
+        console.warn("[fetchProfile] No profile found for user", u.id);
+        return;
+      }
+      const p = raw.attributes ?? raw;
+      p.id = raw.id;
+      p.documentId = raw.documentId ?? raw.id;
+      setProfile(p);
     } catch (e) {
-    console.error("[fetchProfile] Exception:", e);
-  }
-};
+      console.error("[fetchProfile] Exception:", e);
+    }
+  };
 
   const fetchRequests = async () => {
     try {
@@ -1539,16 +1651,49 @@ export default function ProviderDashboard() {
     }
   };
 
+  const fetchPayments = async (u) => {
+    try {
+      const bidsRes = await fetch(
+        `${API_URL}/api/bids?filters[provider][id][$eq]=${u.id}&filters[bid_status][$eq]=accepted&populate[service_request]=true`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const bidsData = await bidsRes.json();
+      const acceptedBids = bidsData?.data || [];
+      if (acceptedBids.length === 0) {
+        setPayments([]);
+        return;
+      }
+      const srDocIds = acceptedBids
+        .map((b) => b.service_request?.documentId)
+        .filter(Boolean);
+      const query = srDocIds
+        .map((id, i) => `filters[service_request][documentId][$in][${i}]=${id}`)
+        .join("&");
+      const paymentsRes = await fetch(
+        `${API_URL}/api/payments?${query}&populate=service_request&pagination[limit]=100`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const paymentsData = await paymentsRes.json();
+      setPayments(paymentsData?.data || []);
+    } catch (e) {
+      console.error("[fetchPayments]", e);
+    }
+  };
+
   const nearbyRequests = profile?.specialty
     ? allRequests.filter((req) => a(req).category === profile.specialty)
     : allRequests;
 
   const refreshBids = () => {
-    if (user) fetchMyBids(user);
+    if (user) {
+      fetchMyBids(user);
+      fetchPayments(user);
+    }
     fetchRequests();
   };
 
-  if (loading)
+  // ── Loading states ──
+  if (loading || subLoading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
         <div className="w-9 h-9 border-2 border-gray-200 border-t-blue-500 rounded-full animate-spin" />
@@ -1573,6 +1718,15 @@ export default function ProviderDashboard() {
       </div>
     );
 
+  // ── Subscription gate ──
+  if (!subStatus?.isActive)
+    return (
+      <SubscriptionPaywall
+        onSubscribe={handleSubscribe}
+        loading={subInitiating}
+      />
+    );
+
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans antialiased">
       <Sidebar
@@ -1589,6 +1743,7 @@ export default function ProviderDashboard() {
             nearbyRequests={nearbyRequests}
             user={user}
             onNavigate={setActiveTab}
+            payments={payments}
           />
         )}
         {activeTab === "requests" && (
@@ -1599,7 +1754,9 @@ export default function ProviderDashboard() {
             onBidSent={refreshBids}
           />
         )}
-        {activeTab === "bids" && <MyBidsTab providerId={user?.id} />}
+        {activeTab === "bids" && (
+          <MyBidsTab providerId={user?.id} payments={payments} />
+        )}
         {activeTab === "profile" && (
           <ProfileTab
             profile={profile}

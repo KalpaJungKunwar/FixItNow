@@ -1,0 +1,52 @@
+{
+  "kind": "collectionType",
+  "collectionName": "provider_subscriptions",
+  "info": {
+    "singularName": "provider-subscription",
+    "pluralName": "provider-subscriptions",
+    "displayName": "provider_subscription"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "provider": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "plugin::users-permissions.user",
+      "inversedBy": "provider_subscriptions"
+    },
+    "pidx": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "decimal"
+    },
+    "subscriptionStatus": {
+      "type": "enumeration",
+      "enum": [
+        "pending",
+        "active",
+        "expired",
+        "failed"
+      ]
+    },
+    "plan": {
+      "type": "enumeration",
+      "enum": [
+        "monthly",
+        "yearly"
+      ]
+    },
+    "starts_at": {
+      "type": "datetime"
+    },
+    "expires_at": {
+      "type": "datetime"
+    },
+    "transaction_id": {
+      "type": "string"
+    }
+  }
+}

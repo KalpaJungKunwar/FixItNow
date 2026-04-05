@@ -55,7 +55,6 @@ function ReviewModal({ request, onClose, onSubmitted }) {
   const [error, setError] = useState("");
   const [providerProfileDocId, setProviderProfileDocId] = useState(null);
 
-  // Fetch the accepted bid fresh when the modal opens
   useEffect(() => {
     const fetchProviderProfile = async () => {
       try {
@@ -75,9 +74,18 @@ function ReviewModal({ request, onClose, onSubmitted }) {
   }, [request.documentId]);
 
   const handleSubmit = async () => {
-    if (!rating) { setError("Please select a rating."); return; }
-    if (!comment.trim()) { setError("Please write a comment."); return; }
-    if (!providerProfileDocId) { setError("Could not find provider profile."); return; }
+    if (!rating) {
+      setError("Please select a rating.");
+      return;
+    }
+    if (!comment.trim()) {
+      setError("Please write a comment.");
+      return;
+    }
+    if (!providerProfileDocId) {
+      setError("Could not find provider profile.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -87,10 +95,13 @@ function ReviewModal({ request, onClose, onSubmitted }) {
 
       const reviewRes = await fetch(`${BASE_URL}/api/reviews`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           data: {
-            rating,
+            rating: parseInt(rating, 10), 
             comment,
             customer: user?.id,
             provider_profile: providerProfileDocId,
@@ -111,19 +122,28 @@ function ReviewModal({ request, onClose, onSubmitted }) {
       const allRatings = allRevData?.data ?? [];
       const existingRatings = allRatings.map((r) => r.rating || 0);
       const ratingsWithCurrent = [...existingRatings, rating];
-      const newAvg = ratingsWithCurrent.reduce((sum, r) => sum + r, 0) / ratingsWithCurrent.length;
+      const newAvg =
+        ratingsWithCurrent.reduce((sum, r) => sum + r, 0) /
+        ratingsWithCurrent.length;
 
       const updateRes = await fetch(
         `${BASE_URL}/api/provider-profiles/${providerProfileDocId}`,
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ data: { rating: parseFloat(newAvg.toFixed(1)) } }),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            data: { rating: parseFloat(newAvg.toFixed(1)) },
+          }),
         },
       );
       if (!updateRes.ok) {
         const e = await updateRes.json();
-        throw new Error(e?.error?.message || "Failed to update provider rating");
+        throw new Error(
+          e?.error?.message || "Failed to update provider rating",
+        );
       }
 
       onSubmitted();
@@ -133,7 +153,6 @@ function ReviewModal({ request, onClose, onSubmitted }) {
       setLoading(false);
     }
   };
-
 
   const ratingLabels = ["", "Poor", "Fair", "Good", "Very Good", "Excellent"];
 
@@ -615,6 +634,7 @@ export default function CustomerDashboard() {
   const [reviewRequest, setReviewRequest] = useState(null);
   const [showProfile, setShowProfile] = useState(null);
   const [reviewedIds, setReviewedIds] = useState(new Set());
+  const [paidRequestIds, setPaidRequestIds] = useState(new Set()); // NEW
   const navigate = useNavigate();
   const user = getUser();
 
@@ -624,29 +644,34 @@ export default function CustomerDashboard() {
 
   const fetchData = async () => {
     try {
-      const [activeRes, completedRes, bidsRes] = await Promise.all([
-        fetch(
-          `${BASE_URL}/api/service-requests?filters[customer][id][$eq]=${user.id}&filters[service_status][$in][0]=pending&filters[service_status][$in][1]=in_progress&filters[service_status][$in][2]=awaiting_confirmation&populate=*&sort=createdAt:desc`,
-          { headers: { Authorization: `Bearer ${getToken()}` } },
-        ),
-        fetch(
-          `${BASE_URL}/api/service-requests?filters[customer][id][$eq]=${user.id}&filters[service_status][$eq]=completed&populate=*&sort=createdAt:desc`,
-          { headers: { Authorization: `Bearer ${getToken()}` } },
-        ),
-        // In fetchData, replace the bids fetch:
-        fetch(
-          `${BASE_URL}/api/bids?filters[bid_status][$eq]=accepted&populate[provider][populate][provider_profile]=true&populate[service_request]=true`,
-          { headers: { Authorization: `Bearer ${getToken()}` } },
-        ),
-      ]);
+      const [activeRes, completedRes, bidsRes, paymentsRes] = await Promise.all(
+        [
+          fetch(
+            `${BASE_URL}/api/service-requests?filters[customer][id][$eq]=${user.id}&filters[service_status][$in][0]=pending&filters[service_status][$in][1]=in_progress&filters[service_status][$in][2]=awaiting_confirmation&populate=*&sort=createdAt:desc`,
+            { headers: { Authorization: `Bearer ${getToken()}` } },
+          ),
+          fetch(
+            `${BASE_URL}/api/service-requests?filters[customer][id][$eq]=${user.id}&filters[service_status][$eq]=completed&populate=*&sort=createdAt:desc`,
+            { headers: { Authorization: `Bearer ${getToken()}` } },
+          ),
+          fetch(
+            `${BASE_URL}/api/bids?filters[bid_status][$eq]=accepted&populate[provider][populate][provider_profile]=true&populate[service_request]=true`,
+            { headers: { Authorization: `Bearer ${getToken()}` } },
+          ),
+          // NEW — fetch completed payments for this user
+          fetch(
+            `${BASE_URL}/api/payments?filters[user][id][$eq]=${user.id}&filters[paymentStatus][$eq]=completed&populate=service_request&pagination[limit]=100`,
+            { headers: { Authorization: `Bearer ${getToken()}` } },
+          ),
+        ],
+      );
 
       const activeData = await activeRes.json();
       const completedData = await completedRes.json();
       const bidsData = await bidsRes.json();
+      const paymentsData = await paymentsRes.json();
       const allBids = bidsData.data || [];
 
-      // Log to verify what's coming back
-     
       if (allBids.length > 0) {
         const profilesRes = await fetch(
           `${BASE_URL}/api/provider-profiles?populate[user][fields][0]=id&pagination[limit]=100`,
@@ -655,23 +680,16 @@ export default function CustomerDashboard() {
         const profilesData = await profilesRes.json();
         const profiles = profilesData.data || [];
 
-      
         allBids.forEach((bid) => {
           if (bid.provider) {
-            // Trust what came back from the bids populate first
             const fromBid = bid.provider.provider_profile;
-            // Fall back to matching from the profiles list
             const fromProfiles =
               profiles.find(
                 (p) => String(p.user?.id) === String(bid.provider.id),
               ) ?? null;
-
             bid.provider.provider_profile = fromBid?.documentId
               ? fromBid
               : fromProfiles;
-
-            
-              
           }
         });
       }
@@ -699,9 +717,17 @@ export default function CustomerDashboard() {
           .filter(Boolean),
       );
 
+      // NEW — build set of paid service request documentIds
+      const paidIds = new Set(
+        (paymentsData.data || [])
+          .map((p) => p.service_request?.documentId)
+          .filter(Boolean),
+      );
+
       setActiveRequests(active);
       setCompletedRequests(completed);
       setReviewedIds(reviewedRequestIds);
+      setPaidRequestIds(paidIds); // NEW
     } catch (err) {
       console.error(err);
     } finally {
@@ -710,35 +736,69 @@ export default function CustomerDashboard() {
   };
 
   const confirmCompletion = async (req) => {
-  try {
-    await fetch(`${BASE_URL}/api/service-requests/${req.documentId}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${getToken()}`,
-      },
-      body: JSON.stringify({ data: { service_status: "completed" } }),
-    });
+    try {
+      await fetch(`${BASE_URL}/api/service-requests/${req.documentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ data: { service_status: "completed" } }),
+      });
 
-    // Fetch the fresh request with bids populated
-    const freshRes = await fetch(
-      `${BASE_URL}/api/service-requests/${req.documentId}?populate[bids][populate][provider][populate][provider_profile]=true`,
-      { headers: { Authorization: `Bearer ${getToken()}` } },
-    );
-    const freshData = await freshRes.json();
-    const freshReq = freshData.data;
+      const freshRes = await fetch(
+        `${BASE_URL}/api/service-requests/${req.documentId}?populate[bids][populate][provider][populate][provider_profile]=true`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const freshData = await freshRes.json();
+      const freshReq = freshData.data;
 
-    fetchData(); // refresh the lists in background
-    setReviewRequest(freshReq); // open modal with correct, populated request
-  } catch (err) {
-    console.error(err);
-  }
-};
+      fetchData();
+      setReviewRequest(freshReq);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  const totalSpent = completedRequests.reduce((sum, req) => {
-    const acceptedBid = req.bids?.find((b) => b.bid_status === "accepted");
-    return sum + (acceptedBid?.amount ?? 0);
-  }, 0);
+  const handlePayment = async (req) => {
+    try {
+      const acceptedBid = req.bids?.find((b) => b.bid_status === "accepted");
+      const amount = acceptedBid?.amount;
+
+      if (!amount) {
+        alert("Could not find bid amount.");
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/api/payments/initiate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ serviceRequestId: req.documentId, amount }),
+      });
+
+      const data = await res.json();
+
+      if (data.payment_url) {
+        window.location.href = data.payment_url;
+      } else {
+        alert("Failed to initiate payment. Please try again.");
+      }
+    } catch (err) {
+      console.error("Payment error:", err);
+      alert("Something went wrong.");
+    }
+  };
+
+  // NEW — only count actually paid jobs
+  const totalSpent = completedRequests
+    .filter((req) => paidRequestIds.has(req.documentId))
+    .reduce((sum, req) => {
+      const acceptedBid = req.bids?.find((b) => b.bid_status === "accepted");
+      return sum + (acceptedBid?.amount ?? 0);
+    }, 0);
 
   const openTracking = (req) => {
     setTrackingRequest(req);
@@ -788,8 +848,8 @@ export default function CustomerDashboard() {
               Rs. {totalSpent.toLocaleString()}
             </p>
             <p className="text-xs text-green-600 mt-1">
-              {completedRequests.length} job
-              {completedRequests.length !== 1 ? "s" : ""} completed
+              {paidRequestIds.size} job{paidRequestIds.size !== 1 ? "s" : ""}{" "}
+              paid
             </p>
           </div>
           <div
@@ -906,6 +966,7 @@ export default function CustomerDashboard() {
                       (b) => b.bid_status === "accepted",
                     );
                     const provider = acceptedBid?.provider;
+                    const isPaid = paidRequestIds.has(req.documentId); // NEW
                     return (
                       <tr
                         key={req.documentId}
@@ -971,6 +1032,19 @@ export default function CustomerDashboard() {
                                 className="text-amber-500 hover:text-amber-700 font-medium transition"
                               >
                                 ⭐ Review
+                              </button>
+                            )}
+                            {/* NEW — show Paid badge or Pay button */}
+                            {isPaid ? (
+                              <span className="text-xs text-green-600 font-semibold flex items-center gap-1 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                                ✓ Paid
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handlePayment(req)}
+                                className="text-white bg-purple-600 hover:bg-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                              >
+                                💳 Pay
                               </button>
                             )}
                           </div>

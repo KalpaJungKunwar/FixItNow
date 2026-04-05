@@ -37,6 +37,7 @@ export default factories.createCoreController('api::documentation.documentation'
         file: fileId,
         approvalStatus: 'pending',
         user: Number(userId),
+        publishedAt: new Date(),
       },
     });
 

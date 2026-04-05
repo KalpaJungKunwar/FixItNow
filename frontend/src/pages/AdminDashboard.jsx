@@ -24,6 +24,10 @@ const STATUS_COLORS = {
   blocked: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   active:
     "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  failed: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
+  monthly: "bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20",
+  yearly:
+    "bg-violet-500/10 text-violet-400 ring-1 ring-inset ring-violet-500/20",
   customer:
     "bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20",
   provider:
@@ -131,18 +135,13 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
               <button
                 key={t.id}
                 onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${
-                  activeTab === t.id
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-zinc-500 hover:text-zinc-300"
-                }`}
+                className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors cursor-pointer ${activeTab === t.id ? "border-indigo-500 text-indigo-400" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
               >
                 {t.label}
               </button>
             ))}
           </div>
         </div>
-
         <div className="p-6 overflow-y-auto flex-1">
           {detailLoading ? (
             <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
@@ -174,12 +173,10 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                       </div>
                     ))}
                   </div>
-
                   <div className="text-zinc-300 font-semibold text-sm">
                     Uploaded Documents (
                     {detail.user.documentations?.length || 0})
                   </div>
-
                   {!detail.user.documentations?.length ? (
                     <div className="bg-zinc-950 rounded-xl p-6 text-center text-red-400 text-sm">
                       No documents uploaded
@@ -255,7 +252,6 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                   )}
                 </div>
               )}
-
               {activeTab === "requests" && (
                 <div className="flex flex-col gap-3">
                   {!detail.serviceRequests?.length ? (
@@ -307,7 +303,6 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                   )}
                 </div>
               )}
-
               {activeTab === "bids" && (
                 <div className="flex flex-col gap-3">
                   {!detail.bids?.length ? (
@@ -347,10 +342,8 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                   )}
                 </div>
               )}
-
               {activeTab === "reviews" && (
                 <div className="flex flex-col gap-4">
-                  {/* Reviews RECEIVED (if provider) */}
                   {detail.reviewsReceived?.length > 0 && (
                     <div>
                       <div className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-2">
@@ -388,8 +381,6 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                       </div>
                     </div>
                   )}
-
-                  {/* Reviews GIVEN (as customer) */}
                   <div>
                     <div className="text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-2">
                       Reviews Given
@@ -436,7 +427,6 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                   </div>
                 </div>
               )}
-
               {activeTab === "messages" && (
                 <div className="flex flex-col gap-2">
                   {!detail.messages?.length ? (
@@ -664,6 +654,7 @@ export default function AdminDashboard() {
     { id: "activity", label: "Recent Activity" },
     { id: "approvals", label: "Pending Approvals" },
     { id: "users", label: "All Users" },
+    { id: "payments", label: "Payments" }, // ← NEW
   ];
 
   return (
@@ -700,7 +691,6 @@ export default function AdminDashboard() {
               Admin Panel
             </span>
           </div>
-
           <div className="flex items-center gap-2.5 bg-zinc-950 rounded-xl p-3 mb-6">
             <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
               {user?.username?.[0]?.toUpperCase() || "A"}
@@ -712,17 +702,12 @@ export default function AdminDashboard() {
               <div className="text-indigo-400 text-[10px]">Administrator</div>
             </div>
           </div>
-
           <nav className="flex flex-col gap-0.5">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                  activeTab === tab.id
-                    ? "bg-indigo-500/10 text-indigo-400"
-                    : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"
-                }`}
+                className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${activeTab === tab.id ? "bg-indigo-500/10 text-indigo-400" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"}`}
               >
                 <span>{tab.label}</span>
                 {tab.id === "approvals" && pendingUsers.length > 0 && (
@@ -733,7 +718,6 @@ export default function AdminDashboard() {
               </button>
             ))}
           </nav>
-
           <button
             onClick={() => {
               logout();
@@ -780,91 +764,106 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {activeTab === "overview" && (
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Total Users"
-                value={users.total}
-                icon="users"
-                color="#6366f1"
-                sub={`${users.customers} customers · ${users.providers} providers`}
-              />
-              <StatCard
-                title="Service Requests"
-                value={serviceRequests.total}
-                icon="clipboard"
-                color="#f59e0b"
-                sub={`${serviceRequests.open} open · ${serviceRequests.completed} completed`}
-              />
-              <StatCard
-                title="Total Bids"
-                value={bids.total}
-                icon="currency"
-                color="#22c55e"
-                sub={`${bids.accepted} accepted · ${bids.pending} pending`}
-              />
-              <StatCard
-                title="Messages"
-                value={messages.total}
-                icon="chat"
-                color="#3b82f6"
-              />
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Reviews"
-                value={reviews.total}
-                icon="star"
-                color="#eab308"
-                sub={`Avg rating: ${reviews.avgRating}`}
-              />
-              <StatCard
-                title="Avg Provider Rating"
-                value={providers.avgRating}
-                icon="medal"
-                color="#ec4899"
-              />
-              <StatCard
-                title="Admins"
-                value={users.admins}
-                icon="shield"
-                color="#14b8a6"
-              />
-            </div>
-            <div className="flex gap-5 flex-wrap">
-              <DonutChart
-                title="Users by Role"
-                data={[
-                  { label: "Customers", value: users.customers },
-                  { label: "Providers", value: users.providers },
-                  { label: "Admins", value: users.admins },
-                ]}
-                colors={["#6366f1", "#22c55e", "#f59e0b"]}
-              />
-              <DonutChart
-                title="Service Request Status"
-                data={[
-                  { label: "Open", value: serviceRequests.open },
-                  { label: "In Progress", value: serviceRequests.inProgress },
-                  { label: "Completed", value: serviceRequests.completed },
-                  { label: "Cancelled", value: serviceRequests.cancelled },
-                ]}
-                colors={["#6366f1", "#f59e0b", "#22c55e", "#ef4444"]}
-              />
-              <DonutChart
-                title="Bid Status"
-                data={[
-                  { label: "Pending", value: bids.pending },
-                  { label: "Accepted", value: bids.accepted },
-                  { label: "Rejected", value: bids.rejected },
-                ]}
-                colors={["#f59e0b", "#22c55e", "#ef4444"]}
-              />
-            </div>
-          </div>
-        )}
+       {activeTab === "overview" && (
+  <div className="flex flex-col gap-6">
+    {/* Row 1 — Traffic stats */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatCard
+        title="Total Users"
+        value={users.total}
+        icon="users"
+        color="#6366f1"
+        sub={`${users.customers} customers · ${users.providers} providers`}
+      />
+      <StatCard
+        title="Service Requests"
+        value={serviceRequests.total}
+        icon="clipboard"
+        color="#f59e0b"
+        sub={`${serviceRequests.open} open · ${serviceRequests.completed} completed`}
+      />
+      <StatCard
+        title="Total Bids"
+        value={bids.total}
+        icon="currency"
+        color="#22c55e"
+        sub={`${bids.accepted} accepted · ${bids.pending} pending`}
+      />
+      <StatCard
+        title="Messages"
+        value={messages.total}
+        icon="chat"
+        color="#3b82f6"
+      />
+    </div>
 
+    {/* Row 2 — Quality + Revenue */}
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <StatCard
+        title="Reviews"
+        value={reviews.total}
+        icon="star"
+        color="#eab308"
+        sub={`Avg rating: ${reviews.avgRating}`}
+      />
+      <StatCard
+        title="Avg Provider Rating"
+        value={providers.avgRating}
+        icon="medal"
+        color="#ec4899"
+      />
+      <StatCard
+        title="Platform Revenue"
+        value={`Rs. ${(stats.payments?.subscriptions?.revenue ?? 0).toLocaleString()}`}
+        icon="currency"
+        color="#22c55e"
+        sub="From provider subscriptions"
+      />
+      <StatCard
+        title="Provider Earnings"
+        value={`Rs. ${(stats.payments?.servicePayments ?? [])
+          .filter((p) => p.paymentStatus === "completed")
+          .reduce((sum, p) => sum + (p.amount || 0), 0)
+          .toLocaleString()}`}
+        icon="currency"
+        color="#f59e0b"
+        sub="Paid via service requests"
+      />
+    </div>
+
+    {/* Donut charts */}
+    <div className="flex gap-5 flex-wrap">
+      <DonutChart
+        title="Users by Role"
+        data={[
+          { label: "Customers", value: users.customers },
+          { label: "Providers", value: users.providers },
+          { label: "Admins", value: users.admins },
+        ]}
+        colors={["#6366f1", "#22c55e", "#f59e0b"]}
+      />
+      <DonutChart
+        title="Service Request Status"
+        data={[
+          { label: "Open", value: serviceRequests.open },
+          { label: "In Progress", value: serviceRequests.inProgress },
+          { label: "Completed", value: serviceRequests.completed },
+          { label: "Cancelled", value: serviceRequests.cancelled },
+        ]}
+        colors={["#6366f1", "#f59e0b", "#22c55e", "#ef4444"]}
+      />
+      <DonutChart
+        title="Bid Status"
+        data={[
+          { label: "Pending", value: bids.pending },
+          { label: "Accepted", value: bids.accepted },
+          { label: "Rejected", value: bids.rejected },
+        ]}
+        colors={["#f59e0b", "#22c55e", "#ef4444"]}
+      />
+    </div>
+  </div>
+)}
         {activeTab === "requests" && (
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1035,14 +1034,12 @@ export default function AdminDashboard() {
                 Refresh
               </button>
             </div>
-
             {pendingLoading && (
               <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
                 <div className="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin mb-3" />
                 <span className="text-sm">Loading pending users...</span>
               </div>
             )}
-
             {!pendingLoading && pendingUsers.length === 0 && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
                 <div className="text-white font-semibold text-base">
@@ -1053,7 +1050,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-
             {pendingUsers.map((u) => (
               <div
                 key={u.id}
@@ -1075,7 +1071,6 @@ export default function AdminDashboard() {
                       </div>
                       {badge(u.roleType)}
                     </div>
-
                     <div className="bg-zinc-950 rounded-xl p-4 mb-4">
                       <div className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-3">
                         Uploaded Documents ({u.documentations?.length || 0})
@@ -1100,7 +1095,6 @@ export default function AdminDashboard() {
                         ))
                       )}
                     </div>
-
                     <button
                       onClick={() => setSelectedUser(u)}
                       className="w-full bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg py-2.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors cursor-pointer"
@@ -1108,7 +1102,6 @@ export default function AdminDashboard() {
                       View Full Details
                     </button>
                   </div>
-
                   <div className="flex flex-col gap-3 min-w-52">
                     <div className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest">
                       Actions
@@ -1122,7 +1115,6 @@ export default function AdminDashboard() {
                         ? "Approving..."
                         : "Approve Account"}
                     </button>
-
                     <div className="border-t border-zinc-800 pt-3">
                       <div className="text-zinc-500 text-xs mb-2">
                         Rejection reason (optional)
@@ -1170,14 +1162,12 @@ export default function AdminDashboard() {
                 Refresh
               </button>
             </div>
-
             {allUsersLoading && (
               <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
                 <div className="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin mb-3" />
                 <span className="text-sm">Loading users...</span>
               </div>
             )}
-
             {!allUsersLoading && allUsers.length === 0 && (
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
                 <div className="text-white font-semibold text-base">
@@ -1185,7 +1175,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
             )}
-
             {!allUsersLoading &&
               allUsers.map((u) => (
                 <div
@@ -1267,6 +1256,71 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ))}
+          </div>
+        )}
+
+        {/* ── NEW: Payments Tab ── */}
+        {activeTab === "payments" && (
+          <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              <StatCard
+                title="Active Subscriptions"
+                value={stats.payments?.subscriptions?.active ?? 0}
+                icon="shield"
+                color="#6366f1"
+                sub={`${stats.payments?.subscriptions?.total ?? 0} total`}
+              />
+              <StatCard
+                title="Subscription Revenue"
+                value={`Rs. ${(stats.payments?.subscriptions?.revenue ?? 0).toLocaleString()}`}
+                icon="currency"
+                color="#22c55e"
+                sub="From active plans"
+              />
+              <StatCard
+                title="Service Payments"
+                value={stats.payments?.servicePayments?.length ?? 0}
+                icon="clipboard"
+                color="#f59e0b"
+                sub="Total transactions"
+              />
+            </div>
+            <RecentTable
+              title="Recent Subscriptions"
+              columns={[
+                "Provider",
+                "Plan",
+                "Amount",
+                "Status",
+                "Expires",
+                "Date",
+              ]}
+              rows={(stats.payments?.recentSubscriptions || []).map((s) => [
+                s.provider?.username || "—",
+                badge(s.plan),
+                `Rs. ${s.amount}`,
+                badge(s.subscriptionStatus),
+                fmt(s.expires_at),
+                fmt(s.createdAt),
+              ])}
+            />
+            <RecentTable
+              title="Service Payments"
+              columns={[
+                "Customer",
+                "Amount",
+                "Status",
+                "Service Request",
+                "Date",
+              ]}
+              rows={(stats.payments?.servicePayments || []).map((p) => [
+                p.user?.username || "—",
+                `Rs. ${p.amount}`,
+                badge(p.paymentStatus),
+                p.service_request?.title || "—",
+                fmt(p.createdAt),
+              ])}
+            />
           </div>
         )}
       </main>
