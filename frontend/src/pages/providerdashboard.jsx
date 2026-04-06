@@ -491,6 +491,84 @@ function LocationMapModal({ lat, lng, title, onClose }) {
     </div>
   );
 }
+function PhotoModal({ photos, onClose }) {
+  const [current, setCurrent] = useState(0);
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <p className="font-bold text-gray-900 text-sm">
+            Photos{" "}
+            <span className="text-gray-400 font-normal">
+              ({current + 1} of {photos.length})
+            </span>
+          </p>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 text-lg transition-colors"
+          >
+            ×
+          </button>
+        </div>
+        <div className="relative w-full h-72 bg-gray-100">
+          <img
+            src={
+              photos[current].url?.startsWith("http")
+                ? photos[current].url
+                : `${API_URL}${photos[current].url}`
+            }
+            alt={`photo-${current + 1}`}
+            className="w-full h-full object-contain"
+          />
+          {photos.length > 1 && (
+            <>
+              <button
+                onClick={() => setCurrent((c) => Math.max(0, c - 1))}
+                disabled={current === 0}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-gray-700 shadow disabled:opacity-30 transition-all"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() =>
+                  setCurrent((c) => Math.min(photos.length - 1, c + 1))
+                }
+                disabled={current === photos.length - 1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-gray-700 shadow disabled:opacity-30 transition-all"
+              >
+                ›
+              </button>
+            </>
+          )}
+        </div>
+        {photos.length > 1 && (
+          <div className="flex gap-2 px-5 py-3 overflow-x-auto border-t border-gray-100">
+            {photos.map((photo, idx) => (
+              <button
+                key={photo.id ?? idx}
+                onClick={() => setCurrent(idx)}
+                className={`w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${current === idx ? "border-blue-500" : "border-transparent"}`}
+              >
+                <img
+                  src={
+                    photo.url?.startsWith("http")
+                      ? photo.url
+                      : `${API_URL}${photo.url}`
+                  }
+                  alt={`thumb-${idx}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function Sidebar({ active, setActive, user, profile }) {
   const navigate = useNavigate();
@@ -600,6 +678,7 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const colorClass = avatarColor(username);
   const specialty = SPECIALTIES.find((s) => s.value === attrs.category);
   const photos = extractPhotos(attrs);
+  const [showPhotos, setShowPhotos] = useState(false);
 
   const alreadyBid = myBids.some((b) => {
     const sr = b?.service_request ?? b?.attributes?.service_request;
@@ -692,44 +771,35 @@ function RequestCard({ request, myBids, onBid, compact }) {
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200">
         {/* ── Photo banner: full-width strip if photos exist ── */}
         {photos.length > 0 && (
-          <div className="relative w-full h-36 bg-gray-100 overflow-hidden">
-            <img
-              src={
-                photos[0].url?.startsWith("http")
-                  ? photos[0].url
-                  : `${API_URL}${photos[0].url}`
-              }
-              alt="Request photo"
-              className="w-full h-full object-cover"
-            />
-            {photos.length > 1 && (
-              <div className="absolute bottom-2 right-2 flex gap-1.5">
-                {photos.slice(1, 3).map((photo, idx) => (
-                  <div
-                    key={photo.id ?? idx}
-                    className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white shadow-md"
-                  >
-                    <img
-                      src={
-                        photo.url?.startsWith("http")
-                          ? photo.url
-                          : `${API_URL}${photo.url}`
-                      }
-                      alt={`photo-${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
-                {photos.length > 3 && (
-                  <div className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white shadow-md bg-black/60 flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">
-                      +{photos.length - 3}
-                    </span>
-                  </div>
-                )}
-              </div>
+          <>
+            {showPhotos && (
+              <PhotoModal
+                photos={photos}
+                onClose={() => setShowPhotos(false)}
+              />
             )}
-          </div>
+            <div className="border-b border-gray-100">
+              <button
+                onClick={() => setShowPhotos(true)}
+                className="w-full flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v13.5A1.5 1.5 0 003.75 21zm10.5-11.25h.008v.008h-.008V9.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+                  />
+                </svg>
+                View photos ({photos.length})
+              </button>
+            </div>
+          </>
         )}
 
         <div className="p-5">
@@ -864,7 +934,7 @@ function RequestCard({ request, myBids, onBid, compact }) {
                   value={bidAvail}
                   onChange={(e) => setBidAvail(e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                  placeholder="e.g. Today 2PM"
+                  placeholder="available dates/times"
                 />
               </div>
               <div>
@@ -1086,6 +1156,37 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
 
 const BIDS_PER_PAGE = 3;
 
+function BidPhotoToggle({ photos }) {
+  const [showModal, setShowModal] = useState(false);
+  return (
+    <>
+      {showModal && (
+        <PhotoModal photos={photos} onClose={() => setShowModal(false)} />
+      )}
+      <div className="border-b border-gray-100">
+        <button
+          onClick={() => setShowModal(true)}
+          className="w-full flex items-center gap-2 px-5 py-2.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+        >
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v13.5A1.5 1.5 0 003.75 21zm10.5-11.25h.008v.008h-.008V9.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
+            />
+          </svg>
+          View photos ({photos.length})
+        </button>
+      </div>
+    </>
+  );
+}
 function MyBidsTab({ providerId, payments }) {
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1227,8 +1328,11 @@ function MyBidsTab({ providerId, payments }) {
                   const reqDocumentId = bid.service_request?.documentId ?? null;
                   const sr = bid.service_request ?? {};
                   const srPhotos = extractPhotos(sr);
-                  const isInProgress = sr.service_status === "in_progress";
-                  const isCompleted = sr.service_status === "completed";
+                  const isAccepted = bid.bid_status === "accepted";
+                  const isInProgress =
+                    sr.service_status === "in_progress" && isAccepted;
+                  const isCompleted =
+                    sr.service_status === "completed" && isAccepted;
                   const isSharing = !!watchIds.current[reqDocumentId];
                   const isChatOpen = openChatId === reqDocumentId;
                   const payment = reqDocumentId
@@ -1259,47 +1363,8 @@ function MyBidsTab({ providerId, payments }) {
                       key={bid.documentId}
                       className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-all"
                     >
-                      {/* ── Photo banner in bid card ── */}
                       {srPhotos.length > 0 && (
-                        <div className="relative w-full h-32 bg-gray-100 overflow-hidden">
-                          <img
-                            src={
-                              srPhotos[0].url?.startsWith("http")
-                                ? srPhotos[0].url
-                                : `${API_URL}${srPhotos[0].url}`
-                            }
-                            alt="Service photo"
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                          {srPhotos.length > 1 && (
-                            <div className="absolute bottom-2 right-2 flex gap-1.5">
-                              {srPhotos.slice(1, 3).map((photo, idx) => (
-                                <div
-                                  key={photo.id ?? idx}
-                                  className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow-md"
-                                >
-                                  <img
-                                    src={
-                                      photo.url?.startsWith("http")
-                                        ? photo.url
-                                        : `${API_URL}${photo.url}`
-                                    }
-                                    alt={`photo-${idx + 1}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ))}
-                              {srPhotos.length > 3 && (
-                                <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow-md bg-black/60 flex items-center justify-center">
-                                  <span className="text-white text-xs font-bold">
-                                    +{srPhotos.length - 3}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        <BidPhotoToggle photos={srPhotos} />
                       )}
 
                       <div className="p-5">
@@ -1318,14 +1383,16 @@ function MyBidsTab({ providerId, payments }) {
                             >
                               Bid: {bid.bid_status?.toUpperCase()}
                             </span>
-                            <span
-                              className={`text-xs font-semibold px-3 py-1 rounded-full ${jobStatusStyle[sr.service_status] ?? "bg-gray-100 text-gray-600"}`}
-                            >
-                              Job:{" "}
-                              {sr.service_status
-                                ?.replace("_", " ")
-                                .toUpperCase()}
-                            </span>
+                            {bid.bid_status !== "rejected" && (
+                              <span
+                                className={`text-xs font-semibold px-3 py-1 rounded-full ${jobStatusStyle[sr.service_status] ?? "bg-gray-100 text-gray-600"}`}
+                              >
+                                Job:{" "}
+                                {sr.service_status
+                                  ?.replace("_", " ")
+                                  .toUpperCase()}
+                              </span>
+                            )}
                             {paymentStatus && (
                               <span
                                 className={`text-xs font-semibold px-3 py-1 rounded-full ${paymentBadgeStyle[paymentStatus] ?? "bg-gray-100 text-gray-600"}`}
@@ -1413,7 +1480,7 @@ function MyBidsTab({ providerId, payments }) {
                             Sharing your live location with the customer
                           </p>
                         )}
-                        {isCompleted && (
+                        {isCompleted && bid.bid_status === "accepted" && (
                           <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
                             <CheckIcon className="w-3.5 h-3.5" /> Job completed
                           </div>

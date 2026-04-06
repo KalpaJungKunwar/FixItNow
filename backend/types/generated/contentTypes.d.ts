@@ -732,7 +732,7 @@ export interface ApiServiceRequestServiceRequest
     singularName: 'service-request';
   };
   options: {
-    draftAndPublish: true;
+    draftAndPublish: false;
   };
   attributes: {
     bids: Schema.Attribute.Relation<'oneToMany', 'api::bid.bid'>;

@@ -47,6 +47,150 @@ const RecenterMap = ({ lat, lng }) => {
   return null;
 };
 
+// ─── Payment Modal ────────────────────────────────────────────────────────────
+function PaymentModal({ request, onConfirm, onClose, loading }) {
+  const acceptedBid = request.bids?.find((b) => b.bid_status === "accepted");
+  const provider = acceptedBid?.provider;
+  const amount = acceptedBid?.amount;
+
+  // Prevent keyboard escape or any interaction outside
+  useEffect(() => {
+    const block = (e) => {
+      if (e.key === "Escape") e.stopPropagation();
+    };
+    window.addEventListener("keydown", block, true);
+    return () => window.removeEventListener("keydown", block, true);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-purple-600 to-purple-700 px-8 py-8 text-white text-center">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+            💳
+          </div>
+          <h2 className="text-2xl font-bold mb-1">Payment Required</h2>
+          <p className="text-purple-200 text-sm">
+            Complete your payment to continue using the platform
+          </p>
+        </div>
+        {/* Warning banner */}
+        <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-center gap-2">
+          <span className="text-amber-500 text-lg">⚠️</span>
+          <p className="text-xs text-amber-700 font-medium">
+            Your provider has completed the job. Payment is required before you
+            can proceed.
+          </p>
+        </div>
+        {/* Body */}
+        <div className="px-8 py-6 space-y-4">
+          {/* Amount */}
+          <div className="bg-purple-50 border border-purple-100 rounded-2xl p-5 text-center">
+            <p className="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">
+              Total Amount Due
+            </p>
+            <p className="text-5xl font-black text-purple-700">
+              Rs. {amount?.toLocaleString()}
+            </p>
+          </div>
+
+          {/* Details */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center py-3 border-b border-gray-100">
+              <span className="text-sm text-gray-400 font-medium">Service</span>
+              <span className="text-sm font-semibold text-gray-800">
+                {request.title}
+              </span>
+            </div>
+            {provider && (
+              <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-400 font-medium">
+                  Provider
+                </span>
+                <span className="text-sm font-semibold text-gray-800">
+                  {provider.username}
+                </span>
+              </div>
+            )}
+            {request.preferred_date && (
+              <div className="flex justify-between items-center py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-400 font-medium">Date</span>
+                <span className="text-sm font-semibold text-gray-800">
+                  {new Date(request.preferred_date).toLocaleDateString(
+                    "en-US",
+                    { dateStyle: "medium" },
+                  )}
+                </span>
+              </div>
+            )}
+            {request.location && (
+              <div className="flex justify-between items-center py-3">
+                <span className="text-sm text-gray-400 font-medium">
+                  Location
+                </span>
+                <span className="text-sm font-semibold text-gray-800">
+                  📍 {request.location}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-gray-400 text-center leading-relaxed">
+            By confirming, you release the payment to the provider and mark this
+            job as complete.
+          </p>
+        </div>
+
+        <div className="px-8 pb-8 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 border-2 border-gray-200 text-gray-600 font-bold py-4 rounded-2xl text-base transition-colors hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-[2] bg-purple-600 hover:bg-purple-700 disabled:opacity-70 text-white font-bold py-4 rounded-2xl text-base transition-colors shadow-lg shadow-purple-200"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg
+                  className="animate-spin h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
+                </svg>
+                Redirecting to payment...
+              </span>
+            ) : (
+              "💳 Pay Now"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Review Modal ─────────────────────────────────────────────────────────────
 function ReviewModal({ request, onClose, onSubmitted }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -221,6 +365,7 @@ function ReviewModal({ request, onClose, onSubmitted }) {
   );
 }
 
+// ─── Status Steps ─────────────────────────────────────────────────────────────
 const StatusSteps = ({ status }) => {
   const steps = [
     { key: "pending", label: "Booked", icon: "📋" },
@@ -280,6 +425,7 @@ const StatusSteps = ({ status }) => {
   );
 };
 
+// ─── Tracking Page ────────────────────────────────────────────────────────────
 const TrackingPage = ({ request, onBack }) => {
   const [liveRequest, setLiveRequest] = useState(request);
   const pollRef = useRef(null);
@@ -483,6 +629,7 @@ const TrackingPage = ({ request, onBack }) => {
   );
 };
 
+// ─── Booking Card ─────────────────────────────────────────────────────────────
 const BookingCard = ({
   request,
   onTrack,
@@ -620,6 +767,7 @@ const BookingCard = ({
   );
 };
 
+// ─── Customer Dashboard ───────────────────────────────────────────────────────
 export default function CustomerDashboard() {
   const [view, setView] = useState("dashboard");
   const [trackingRequest, setTrackingRequest] = useState(null);
@@ -630,6 +778,8 @@ export default function CustomerDashboard() {
   const [showProfile, setShowProfile] = useState(null);
   const [reviewedIds, setReviewedIds] = useState(new Set());
   const [paidRequestIds, setPaidRequestIds] = useState(new Set());
+  const [paymentRequest, setPaymentRequest] = useState(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const navigate = useNavigate();
   const user = getUser();
 
@@ -728,7 +878,14 @@ export default function CustomerDashboard() {
     }
   };
 
-  const confirmCompletion = async (req) => {
+  // Opens the payment modal
+  const handleConfirmCompletion = (req) => {
+    setPaymentRequest(req);
+  };
+
+  // Called when user clicks "Pay Now" inside the modal
+  const confirmCompletion = async () => {
+    const req = paymentRequest;
     try {
       const acceptedBid = req.bids?.find((b) => b.bid_status === "accepted");
       const amount = acceptedBid?.amount;
@@ -737,6 +894,8 @@ export default function CustomerDashboard() {
         alert("Could not find bid amount. Please contact support.");
         return;
       }
+
+      setPaymentLoading(true);
 
       const res = await fetch(`${BASE_URL}/api/payments/initiate`, {
         method: "POST",
@@ -753,10 +912,12 @@ export default function CustomerDashboard() {
         window.location.href = data.payment_url;
       } else {
         alert("Failed to initiate payment. Please try again.");
+        setPaymentLoading(false);
       }
     } catch (err) {
       console.error("Payment error:", err);
       alert("Something went wrong.");
+      setPaymentLoading(false);
     }
   };
 
@@ -797,6 +958,16 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Payment modal — no onClose prop so it cannot be dismissed */}
+      {paymentRequest && (
+        <PaymentModal
+          request={paymentRequest}
+          loading={paymentLoading}
+          onConfirm={confirmCompletion}
+          onClose={() => setPaymentRequest(null)}
+        />
+      )}
+
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -872,7 +1043,7 @@ export default function CustomerDashboard() {
                   key={req.documentId}
                   request={req}
                   onTrack={openTracking}
-                  onConfirmCompletion={confirmCompletion}
+                  onConfirmCompletion={handleConfirmCompletion}
                   onViewProfile={setShowProfile}
                 />
               ))}
@@ -1009,7 +1180,7 @@ export default function CustomerDashboard() {
                               </>
                             ) : (
                               <button
-                                onClick={() => confirmCompletion(req)}
+                                onClick={() => handleConfirmCompletion(req)}
                                 className="text-white bg-purple-600 hover:bg-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
                               >
                                 💳 Pay

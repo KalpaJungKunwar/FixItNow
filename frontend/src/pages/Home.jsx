@@ -262,7 +262,6 @@ function LiveMarketplace() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
- 
 
   useEffect(() => {
     let cancelled = false;
