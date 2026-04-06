@@ -262,32 +262,7 @@ function LiveMarketplace() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const fallback = [
-    {
-      id: 1,
-      title: "Kitchen Tap Leak",
-      category: "Plumbing",
-      service_status: "accepted",
-      suggested_budget: 400,
-      bids: [{ amount: 350 }],
-    },
-    {
-      id: 2,
-      title: "Switchboard Sparking",
-      category: "Electrical",
-      service_status: "pending",
-      suggested_budget: 600,
-      bids: [{ amount: 490 }, { amount: 520 }, { amount: 480 }],
-    },
-    {
-      id: 3,
-      title: "Deep House Cleaning",
-      category: "Cleaning",
-      service_status: "pending",
-      suggested_budget: 1800,
-      bids: [{ amount: 1500 }, { amount: 1600 }],
-    },
-  ];
+ 
 
   useEffect(() => {
     let cancelled = false;

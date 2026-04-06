@@ -30,6 +30,11 @@ export default function Header() {
               <Link to="/services" className="hover:text-gray-900">
                 Services
               </Link>
+
+              <Link to="/profile" className="hover:text-gray-900">
+                Profile
+              </Link>
+
               <Link to="/dashboard" className="hover:text-gray-900">
                 My Bookings
               </Link>

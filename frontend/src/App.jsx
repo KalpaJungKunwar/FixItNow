@@ -13,6 +13,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import PendingApproval from "./pages/PendingApproval";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
+import CustomerProfile from "./pages/CustomerProfile";
 
 const NO_LAYOUT_ROUTES = ["/providerdashboard", "/admin"];
 
@@ -35,40 +36,64 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={
-            <ProtectedRoute allowedRole="customer">
-              <Home />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute allowedRole="customer">
+                <Home />
+              </ProtectedRoute>
+            }
+          />
 
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
 
-          <Route path="/services" element={
-            <ProtectedRoute allowedRole="customer">
-              <Services />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/services"
+            element={
+              <ProtectedRoute allowedRole="customer">
+                <Services />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/dashboard" element={
-            <ProtectedRoute allowedRole="customer">
-              <CustomerDashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute allowedRole="customer">
+                <CustomerProfile />
+              </ProtectedRoute>
+            }
+          />
 
-          <Route path="/providerdashboard" element={
-            <ProtectedRoute allowedRole="provider">
-              <ProviderDashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRole="customer">
+                <CustomerDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/providerdashboard"
+            element={
+              <ProtectedRoute allowedRole="provider">
+                <ProviderDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Admin */}
-          <Route path="/admin" element={
-            <ProtectedRoute allowedRole="admin">
-              <AdminDashboard />
-            </ProtectedRoute>
-          } />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Payment */}
           <Route path="/payment/success" element={<PaymentSuccess />} />
