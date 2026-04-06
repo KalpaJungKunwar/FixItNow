@@ -311,6 +311,85 @@ function avatarColor(str) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+// ─── Helper: extract photos array from a service request attrs object ─────────
+function extractPhotos(attrs) {
+  // Strapi v4 can return photos as:
+  //   attrs.photos.data = [{ id, attributes: { url, ... } }]
+  // or after populate as a flat array of objects with .url
+  const raw = attrs?.photos;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw; // already flat
+  if (Array.isArray(raw?.data)) {
+    // v4 shape
+    return raw.data.map((f) => ({ ...a(f), id: f.id }));
+  }
+  return [];
+}
+
+// ─── Photo Strip ──────────────────────────────────────────────────────────────
+function PhotoStrip({ photos, className = "" }) {
+  const [lightbox, setLightbox] = useState(null);
+  if (!photos || photos.length === 0) return null;
+
+  return (
+    <>
+      <div className={`flex gap-2 flex-wrap ${className}`}>
+        {photos
+          .map((photo, idx) => {
+            const url = photo.url?.startsWith("http")
+              ? photo.url
+              : `${API_URL}${photo.url}`;
+            return (
+              <button
+                key={photo.id ?? idx}
+                onClick={() => setLightbox(url)}
+                className="relative group w-16 h-16 rounded-xl overflow-hidden border border-gray-200 hover:border-blue-400 transition-all hover:shadow-md flex-shrink-0"
+              >
+                <img
+                  src={url}
+                  alt={photo.name ?? `photo-${idx}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                />
+                {idx === 2 && photos.length > 3 && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">
+                      +{photos.length - 3}
+                    </span>
+                  </div>
+                )}
+              </button>
+            );
+          })
+          .slice(0, 3)}
+      </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <div
+            className="relative max-w-2xl w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={lightbox}
+              alt="Service photo"
+              className="w-full rounded-2xl shadow-2xl object-contain max-h-[80vh]"
+            />
+            <button
+              onClick={() => setLightbox(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-700 shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function LocationMapModal({ lat, lng, title, onClose }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -511,6 +590,7 @@ function EmptyState({ Icon, title, sub }) {
   );
 }
 
+// ─── Request Card ─────────────────────────────────────────────────────────────
 function RequestCard({ request, myBids, onBid, compact }) {
   const attrs = a(request);
   const customer = attrs.customer?.data
@@ -519,6 +599,8 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const username = customer?.username || "Customer";
   const colorClass = avatarColor(username);
   const specialty = SPECIALTIES.find((s) => s.value === attrs.category);
+  const photos = extractPhotos(attrs);
+
   const alreadyBid = myBids.some((b) => {
     const sr = b?.service_request ?? b?.attributes?.service_request;
     const rid = sr?.data?.id ?? sr?.id ?? sr?.data?.attributes?.id;
@@ -543,6 +625,10 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const [sent, setSent] = useState(alreadyBid);
   const [error, setError] = useState("");
   const [showMap, setShowMap] = useState(false);
+
+  useEffect(() => {
+    if (alreadyBid) setSent(true);
+  }, [alreadyBid]);
 
   const handleBid = async () => {
     if (!bidAmount) {
@@ -604,6 +690,48 @@ function RequestCard({ request, myBids, onBid, compact }) {
         />
       )}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200">
+        {/* ── Photo banner: full-width strip if photos exist ── */}
+        {photos.length > 0 && (
+          <div className="relative w-full h-36 bg-gray-100 overflow-hidden">
+            <img
+              src={
+                photos[0].url?.startsWith("http")
+                  ? photos[0].url
+                  : `${API_URL}${photos[0].url}`
+              }
+              alt="Request photo"
+              className="w-full h-full object-cover"
+            />
+            {photos.length > 1 && (
+              <div className="absolute bottom-2 right-2 flex gap-1.5">
+                {photos.slice(1, 3).map((photo, idx) => (
+                  <div
+                    key={photo.id ?? idx}
+                    className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white shadow-md"
+                  >
+                    <img
+                      src={
+                        photo.url?.startsWith("http")
+                          ? photo.url
+                          : `${API_URL}${photo.url}`
+                      }
+                      alt={`photo-${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+                {photos.length > 3 && (
+                  <div className="w-12 h-12 rounded-lg overflow-hidden border-2 border-white shadow-md bg-black/60 flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">
+                      +{photos.length - 3}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="p-5">
           <div className="flex items-start gap-3">
             <div
@@ -626,6 +754,11 @@ function RequestCard({ request, myBids, onBid, compact }) {
               <p className="font-semibold text-sm text-gray-800 mb-2">
                 {attrs.title}
               </p>
+              {attrs.description && (
+                <p className="text-xs text-gray-500 leading-relaxed mb-2 line-clamp-2">
+                  {attrs.description}
+                </p>
+              )}
               <div className="flex flex-wrap gap-3">
                 {attrs.location && (
                   <span className="flex items-center gap-1 text-xs text-gray-400">
@@ -707,6 +840,7 @@ function RequestCard({ request, myBids, onBid, compact }) {
             </div>
           </div>
         </div>
+
         {expanded && !sent && (
           <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
             <div className="grid grid-cols-3 gap-3 mb-3">
@@ -788,6 +922,7 @@ function DashboardTab({
   user,
   onNavigate,
   payments,
+  onBid,
 }) {
   const paidServiceRequestIds = new Set(
     payments
@@ -870,7 +1005,7 @@ function DashboardTab({
               key={req.id}
               request={req}
               myBids={myBids}
-              onNavigate={() => onNavigate("requests")}
+              onBid={onBid}
               compact
             />
           ))}
@@ -974,10 +1109,11 @@ function MyBidsTab({ providerId, payments }) {
     };
   }, []);
 
+  // ── fetch bids WITH photos populated on the service_request ──
   const fetchMyBids = async () => {
     try {
       const res = await fetch(
-        `${API_URL}/api/bids?filters[provider][id][$eq]=${providerId}&populate[service_request]=true&sort=createdAt:desc`,
+        `${API_URL}/api/bids?filters[provider][id][$eq]=${providerId}&populate[service_request][populate][photos]=true&sort=createdAt:desc`,
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       const data = await res.json();
@@ -1090,6 +1226,7 @@ function MyBidsTab({ providerId, payments }) {
                 {paginated.map((bid) => {
                   const reqDocumentId = bid.service_request?.documentId ?? null;
                   const sr = bid.service_request ?? {};
+                  const srPhotos = extractPhotos(sr);
                   const isInProgress = sr.service_status === "in_progress";
                   const isCompleted = sr.service_status === "completed";
                   const isSharing = !!watchIds.current[reqDocumentId];
@@ -1120,130 +1257,179 @@ function MyBidsTab({ providerId, payments }) {
                   return (
                     <div
                       key={bid.documentId}
-                      className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all"
+                      className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md transition-all"
                     >
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 className="font-bold text-gray-900">
-                            {sr.title ?? "Service Request"}
-                          </h3>
-                          <p className="text-sm text-gray-500 capitalize mt-0.5">
-                            {sr.category ?? ""}
-                          </p>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span
-                            className={`text-xs font-semibold px-3 py-1 rounded-full ${bidStatusStyle[bid.bid_status] ?? "bg-gray-100 text-gray-600"}`}
-                          >
-                            Bid: {bid.bid_status?.toUpperCase()}
-                          </span>
-                          <span
-                            className={`text-xs font-semibold px-3 py-1 rounded-full ${jobStatusStyle[sr.service_status] ?? "bg-gray-100 text-gray-600"}`}
-                          >
-                            Job:{" "}
-                            {sr.service_status?.replace("_", " ").toUpperCase()}
-                          </span>
-                          {paymentStatus && (
-                            <span
-                              className={`text-xs font-semibold px-3 py-1 rounded-full ${paymentBadgeStyle[paymentStatus] ?? "bg-gray-100 text-gray-600"}`}
-                            >
-                              💳 Payment: {paymentStatus.toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex justify-between text-sm text-gray-600 mb-3 bg-gray-50 rounded-xl px-4 py-3">
-                        <span>
-                          Your bid:{" "}
-                          <strong className="text-gray-900">
-                            Rs. {bid.amount?.toLocaleString()}
-                          </strong>
-                        </span>
-                        <span>
-                          Available:{" "}
-                          <strong className="text-gray-900">
-                            {bid.availability ?? "—"}
-                          </strong>
-                        </span>
-                      </div>
-                      {paymentStatus === "completed" && (
-                        <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 mb-3">
-                          <span className="text-xs font-bold text-green-700">
-                            ✓ Rs. {bid.amount?.toLocaleString()} received
-                          </span>
-                        </div>
-                      )}
-                      {sr.customer_lat && sr.customer_lng && (
-                        <button
-                          onClick={() =>
-                            setMapModal({
-                              lat: sr.customer_lat,
-                              lng: sr.customer_lng,
-                              title: sr.title,
-                            })
-                          }
-                          className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors mb-3"
-                        >
-                          📍 View customer location on map
-                        </button>
-                      )}
-                      {isInProgress && reqDocumentId && (
-                        <div className="flex flex-wrap gap-3 mt-2">
-                          {!isSharing ? (
-                            <button
-                              onClick={() =>
-                                startSharingLocation(reqDocumentId)
-                              }
-                              className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
-                            >
-                              Share My Location
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => stopSharingLocation(reqDocumentId)}
-                              className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white text-sm font-semibold rounded-xl hover:bg-gray-600 transition"
-                            >
-                              ⏹ Stop Sharing
-                            </button>
-                          )}
-                          <button
-                            onClick={() => markCompleted(reqDocumentId)}
-                            className="flex items-center gap-2 px-4 py-2 bg-emerald-400 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition"
-                          >
-                            Mark Completed
-                          </button>
-                          <button
-                            onClick={() =>
-                              setOpenChatId(isChatOpen ? null : reqDocumentId)
+                      {/* ── Photo banner in bid card ── */}
+                      {srPhotos.length > 0 && (
+                        <div className="relative w-full h-32 bg-gray-100 overflow-hidden">
+                          <img
+                            src={
+                              srPhotos[0].url?.startsWith("http")
+                                ? srPhotos[0].url
+                                : `${API_URL}${srPhotos[0].url}`
                             }
-                            className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition ${isChatOpen ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-violet-400 text-white hover:bg-violet-500"}`}
-                          >
-                            {isChatOpen ? "Close Chat" : "Message Customer"}
-                          </button>
+                            alt="Service photo"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                          {srPhotos.length > 1 && (
+                            <div className="absolute bottom-2 right-2 flex gap-1.5">
+                              {srPhotos.slice(1, 3).map((photo, idx) => (
+                                <div
+                                  key={photo.id ?? idx}
+                                  className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow-md"
+                                >
+                                  <img
+                                    src={
+                                      photo.url?.startsWith("http")
+                                        ? photo.url
+                                        : `${API_URL}${photo.url}`
+                                    }
+                                    alt={`photo-${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                              {srPhotos.length > 3 && (
+                                <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow-md bg-black/60 flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">
+                                    +{srPhotos.length - 3}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
-                      {isInProgress && isSharing && (
-                        <p className="text-xs text-blue-500 mt-3 flex items-center gap-1.5">
-                          <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />{" "}
-                          Sharing your live location with the customer
-                        </p>
-                      )}
-                      {isCompleted && (
-                        <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
-                          <CheckIcon className="w-3.5 h-3.5" /> Job completed
+
+                      <div className="p-5">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 className="font-bold text-gray-900">
+                              {sr.title ?? "Service Request"}
+                            </h3>
+                            <p className="text-sm text-gray-500 capitalize mt-0.5">
+                              {sr.category ?? ""}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <span
+                              className={`text-xs font-semibold px-3 py-1 rounded-full ${bidStatusStyle[bid.bid_status] ?? "bg-gray-100 text-gray-600"}`}
+                            >
+                              Bid: {bid.bid_status?.toUpperCase()}
+                            </span>
+                            <span
+                              className={`text-xs font-semibold px-3 py-1 rounded-full ${jobStatusStyle[sr.service_status] ?? "bg-gray-100 text-gray-600"}`}
+                            >
+                              Job:{" "}
+                              {sr.service_status
+                                ?.replace("_", " ")
+                                .toUpperCase()}
+                            </span>
+                            {paymentStatus && (
+                              <span
+                                className={`text-xs font-semibold px-3 py-1 rounded-full ${paymentBadgeStyle[paymentStatus] ?? "bg-gray-100 text-gray-600"}`}
+                              >
+                                💳 Payment: {paymentStatus.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
-                      {(isInProgress ||
-                        sr.service_status === "awaiting_confirmation") &&
-                        reqDocumentId &&
-                        isChatOpen && (
-                          <div className="mt-4 border-t border-gray-100 pt-4">
-                            <ChatBox
-                              requestId={reqDocumentId}
-                              currentUser={getUser()}
-                            />
+                        <div className="flex justify-between text-sm text-gray-600 mb-3 bg-gray-50 rounded-xl px-4 py-3">
+                          <span>
+                            Your bid:{" "}
+                            <strong className="text-gray-900">
+                              Rs. {bid.amount?.toLocaleString()}
+                            </strong>
+                          </span>
+                          <span>
+                            Available:{" "}
+                            <strong className="text-gray-900">
+                              {bid.availability ?? "—"}
+                            </strong>
+                          </span>
+                        </div>
+                        {paymentStatus === "completed" && (
+                          <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl px-4 py-2.5 mb-3">
+                            <span className="text-xs font-bold text-green-700">
+                              ✓ Rs. {bid.amount?.toLocaleString()} received
+                            </span>
                           </div>
                         )}
+                        {sr.customer_lat && sr.customer_lng && (
+                          <button
+                            onClick={() =>
+                              setMapModal({
+                                lat: sr.customer_lat,
+                                lng: sr.customer_lng,
+                                title: sr.title,
+                              })
+                            }
+                            className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline transition-colors mb-3"
+                          >
+                            📍 View customer location on map
+                          </button>
+                        )}
+                        {isInProgress && reqDocumentId && (
+                          <div className="flex flex-wrap gap-3 mt-2">
+                            {!isSharing ? (
+                              <button
+                                onClick={() =>
+                                  startSharingLocation(reqDocumentId)
+                                }
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
+                              >
+                                Share My Location
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  stopSharingLocation(reqDocumentId)
+                                }
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white text-sm font-semibold rounded-xl hover:bg-gray-600 transition"
+                              >
+                                ⏹ Stop Sharing
+                              </button>
+                            )}
+                            <button
+                              onClick={() => markCompleted(reqDocumentId)}
+                              className="flex items-center gap-2 px-4 py-2 bg-emerald-400 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition"
+                            >
+                              Mark Completed
+                            </button>
+                            <button
+                              onClick={() =>
+                                setOpenChatId(isChatOpen ? null : reqDocumentId)
+                              }
+                              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition ${isChatOpen ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-violet-400 text-white hover:bg-violet-500"}`}
+                            >
+                              {isChatOpen ? "Close Chat" : "Message Customer"}
+                            </button>
+                          </div>
+                        )}
+                        {isInProgress && isSharing && (
+                          <p className="text-xs text-blue-500 mt-3 flex items-center gap-1.5">
+                            <span className="inline-block w-2 h-2 bg-blue-500 rounded-full animate-pulse" />{" "}
+                            Sharing your live location with the customer
+                          </p>
+                        )}
+                        {isCompleted && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 font-semibold">
+                            <CheckIcon className="w-3.5 h-3.5" /> Job completed
+                          </div>
+                        )}
+                        {(isInProgress ||
+                          sr.service_status === "awaiting_confirmation") &&
+                          reqDocumentId &&
+                          isChatOpen && (
+                            <div className="mt-4 border-t border-gray-100 pt-4">
+                              <ChatBox
+                                requestId={reqDocumentId}
+                                currentUser={getUser()}
+                              />
+                            </div>
+                          )}
+                      </div>
                     </div>
                   );
                 })}
@@ -1286,6 +1472,7 @@ function MyBidsTab({ providerId, payments }) {
     </div>
   );
 }
+
 function PwChangeForm() {
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
   const [pwSaving, setPwSaving] = useState(false);
@@ -1613,8 +1800,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           {loading ? "Saving..." : "Save Changes"}
         </button>
       </div>
-
-      {/* Change Password */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-5">
         <h3 className="text-sm font-bold text-gray-900 mb-1">
           Change Password
@@ -1628,7 +1813,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
   );
 }
 
-// ─── Subscription Paywall ──────────────────────────────────────────────────
 function SubscriptionPaywall({ onSubscribe, loading }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1667,7 +1851,7 @@ function SubscriptionPaywall({ onSubscribe, loading }) {
   );
 }
 
-// ─── Main ──────────────────────────────────────────────────────────────────
+// ─── Main ──────────────────────────────────────────────────────────────────────
 export default function ProviderDashboard() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [user, setUser] = useState(null);
@@ -1676,8 +1860,6 @@ export default function ProviderDashboard() {
   const [myBids, setMyBids] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // ── Subscription state ──
   const [subStatus, setSubStatus] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
   const [subInitiating, setSubInitiating] = useState(false);
@@ -1695,7 +1877,6 @@ export default function ProviderDashboard() {
     else setLoading(false);
   }, []);
 
-  // Check subscription on mount
   useEffect(() => {
     const checkSub = async () => {
       try {
@@ -1755,10 +1936,11 @@ export default function ProviderDashboard() {
     }
   };
 
+  // ── fetch requests WITH photos populated ──
   const fetchRequests = async () => {
     try {
       const res = await fetch(
-        `${API_URL}/api/service-requests?filters[service_status][$eq]=pending&populate[customer]=true&populate[bids][fields][0]=id&sort=createdAt:desc&pagination[limit]=50`,
+        `${API_URL}/api/service-requests?filters[service_status][$eq]=pending&populate[customer]=true&populate[bids][fields][0]=id&populate[photos]=true&sort=createdAt:desc&pagination[limit]=50`,
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       const data = await res.json();
@@ -1822,7 +2004,6 @@ export default function ProviderDashboard() {
     fetchRequests();
   };
 
-  // ── Loading states ──
   if (loading || subLoading)
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
@@ -1848,7 +2029,6 @@ export default function ProviderDashboard() {
       </div>
     );
 
-  // ── Subscription gate ──
   if (!subStatus?.isActive)
     return (
       <SubscriptionPaywall
@@ -1873,6 +2053,7 @@ export default function ProviderDashboard() {
             nearbyRequests={nearbyRequests}
             user={user}
             onNavigate={setActiveTab}
+            onBid={refreshBids}
             payments={payments}
           />
         )}

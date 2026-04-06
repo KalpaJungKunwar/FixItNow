@@ -101,7 +101,7 @@ function ReviewModal({ request, onClose, onSubmitted }) {
         },
         body: JSON.stringify({
           data: {
-            rating: parseInt(rating, 10), 
+            rating: parseInt(rating, 10),
             comment,
             customer: user?.id,
             provider_profile: providerProfileDocId,
@@ -166,7 +166,6 @@ function ReviewModal({ request, onClose, onSubmitted }) {
           How was your service:{" "}
           <span className="font-medium text-gray-600">{request.title}</span>?
         </p>
-
         <div className="flex justify-center gap-3 mb-3">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -186,26 +185,22 @@ function ReviewModal({ request, onClose, onSubmitted }) {
             </button>
           ))}
         </div>
-
         {rating > 0 && (
           <p className="text-center text-sm font-semibold text-blue-600 mb-4">
             {ratingLabels[rating]}
           </p>
         )}
-
         <textarea
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400 resize-none h-24"
           placeholder="Share your experience with this provider..."
         />
-
         {error && (
           <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600 mb-4">
             {error}
           </div>
         )}
-
         <div className="flex gap-3">
           <button
             onClick={onClose}
@@ -578,14 +573,14 @@ const BookingCard = ({
             🔔 Provider has marked this job as complete
           </p>
           <p className="text-xs text-purple-600 mb-3">
-            Please confirm the work is done to finalize the booking.
+            Pay to confirm completion and release payment to the provider.
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => onConfirmCompletion(request)}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition"
+              className="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transition"
             >
-              ✅ Confirm Completion
+              💳 Pay & Confirm
             </button>
             <button
               onClick={() => onTrack(request)}
@@ -634,7 +629,7 @@ export default function CustomerDashboard() {
   const [reviewRequest, setReviewRequest] = useState(null);
   const [showProfile, setShowProfile] = useState(null);
   const [reviewedIds, setReviewedIds] = useState(new Set());
-  const [paidRequestIds, setPaidRequestIds] = useState(new Set()); // NEW
+  const [paidRequestIds, setPaidRequestIds] = useState(new Set());
   const navigate = useNavigate();
   const user = getUser();
 
@@ -658,7 +653,6 @@ export default function CustomerDashboard() {
             `${BASE_URL}/api/bids?filters[bid_status][$eq]=accepted&populate[provider][populate][provider_profile]=true&populate[service_request]=true`,
             { headers: { Authorization: `Bearer ${getToken()}` } },
           ),
-          // NEW — fetch completed payments for this user
           fetch(
             `${BASE_URL}/api/payments?filters[user][id][$eq]=${user.id}&filters[paymentStatus][$eq]=completed&populate=service_request&pagination[limit]=100`,
             { headers: { Authorization: `Bearer ${getToken()}` } },
@@ -717,7 +711,6 @@ export default function CustomerDashboard() {
           .filter(Boolean),
       );
 
-      // NEW — build set of paid service request documentIds
       const paidIds = new Set(
         (paymentsData.data || [])
           .map((p) => p.service_request?.documentId)
@@ -727,7 +720,7 @@ export default function CustomerDashboard() {
       setActiveRequests(active);
       setCompletedRequests(completed);
       setReviewedIds(reviewedRequestIds);
-      setPaidRequestIds(paidIds); // NEW
+      setPaidRequestIds(paidIds);
     } catch (err) {
       console.error(err);
     } finally {
@@ -737,36 +730,11 @@ export default function CustomerDashboard() {
 
   const confirmCompletion = async (req) => {
     try {
-      await fetch(`${BASE_URL}/api/service-requests/${req.documentId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({ data: { service_status: "completed" } }),
-      });
-
-      const freshRes = await fetch(
-        `${BASE_URL}/api/service-requests/${req.documentId}?populate[bids][populate][provider][populate][provider_profile]=true`,
-        { headers: { Authorization: `Bearer ${getToken()}` } },
-      );
-      const freshData = await freshRes.json();
-      const freshReq = freshData.data;
-
-      fetchData();
-      setReviewRequest(freshReq);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handlePayment = async (req) => {
-    try {
       const acceptedBid = req.bids?.find((b) => b.bid_status === "accepted");
       const amount = acceptedBid?.amount;
 
       if (!amount) {
-        alert("Could not find bid amount.");
+        alert("Could not find bid amount. Please contact support.");
         return;
       }
 
@@ -792,7 +760,6 @@ export default function CustomerDashboard() {
     }
   };
 
-  // NEW — only count actually paid jobs
   const totalSpent = completedRequests
     .filter((req) => paidRequestIds.has(req.documentId))
     .reduce((sum, req) => {
@@ -966,7 +933,7 @@ export default function CustomerDashboard() {
                       (b) => b.bid_status === "accepted",
                     );
                     const provider = acceptedBid?.provider;
-                    const isPaid = paidRequestIds.has(req.documentId); // NEW
+                    const isPaid = paidRequestIds.has(req.documentId);
                     return (
                       <tr
                         key={req.documentId}
@@ -1022,26 +989,27 @@ export default function CustomerDashboard() {
                             >
                               View Details
                             </button>
-                            {reviewedIds.has(req.documentId) ? (
-                              <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
-                                ✓ Reviewed
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => setReviewRequest(req)}
-                                className="text-amber-500 hover:text-amber-700 font-medium transition"
-                              >
-                                ⭐ Review
-                              </button>
-                            )}
-                            {/* NEW — show Paid badge or Pay button */}
                             {isPaid ? (
-                              <span className="text-xs text-green-600 font-semibold flex items-center gap-1 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
-                                ✓ Paid
-                              </span>
+                              <>
+                                <span className="text-xs text-green-600 font-semibold flex items-center gap-1 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">
+                                  ✓ Paid
+                                </span>
+                                {reviewedIds.has(req.documentId) ? (
+                                  <span className="text-xs text-gray-400 font-medium flex items-center gap-1">
+                                    ✓ Reviewed
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setReviewRequest(req)}
+                                    className="text-amber-500 hover:text-amber-700 font-medium transition"
+                                  >
+                                    ⭐ Review
+                                  </button>
+                                )}
+                              </>
                             ) : (
                               <button
-                                onClick={() => handlePayment(req)}
+                                onClick={() => confirmCompletion(req)}
                                 className="text-white bg-purple-600 hover:bg-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
                               >
                                 💳 Pay
