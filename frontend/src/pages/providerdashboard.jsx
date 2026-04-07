@@ -1770,31 +1770,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
         <h3 className="text-sm font-bold text-gray-900 mb-5">
           Edit Information
         </h3>
-        <label className="block text-xs font-semibold text-gray-600 mb-2">
-          Specialty *
-        </label>
-        <div className="grid grid-cols-4 gap-2 mb-5">
-          {SPECIALTIES.map((s) => (
-            <button
-              key={s.value}
-              onClick={() => set("specialty", s.value)}
-              className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${form.specialty === s.value ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
-            >
-              <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center ${form.specialty === s.value ? "bg-blue-100" : "bg-gray-100"}`}
-              >
-                <s.Icon
-                  className={`w-4 h-4 ${form.specialty === s.value ? "text-blue-500" : "text-gray-500"}`}
-                />
-              </div>
-              <span
-                className={`text-[11px] font-semibold ${form.specialty === s.value ? "text-blue-600" : "text-gray-600"}`}
-              >
-                {s.label}
-              </span>
-            </button>
-          ))}
-        </div>
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">
           Location *
         </label>
