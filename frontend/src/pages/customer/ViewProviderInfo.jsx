@@ -44,6 +44,7 @@ export default function ProviderProfilePage({
 }) {
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [profilePicture, setProfilePicture] = useState(null); // ← add this
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,11 +52,11 @@ export default function ProviderProfilePage({
     fetchProfile();
   }, [providerDocumentId]);
 
- const fetchProfile = async () => {
+  const fetchProfile = async () => {
   const token = getToken();
   if (!token) return;
   try {
-    // Step 1: fetch profile by its own documentId
+    // Step 1: fetch the provider profile
     const res = await fetch(
       `${API_URL}/api/provider-profiles/${providerDocumentId}?populate[reviews]=true`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -68,7 +69,27 @@ export default function ProviderProfilePage({
     const profileDocumentId = raw.documentId ?? raw.id;
     setProfile(p);
 
-    // Step 2: fetch reviews with customer populated
+    // Step 2: fetch user by username to get profilePicture
+    if (providerUsername) {
+      const userRes = await fetch(
+        `${API_URL}/api/users?filters[username][$eq]=${encodeURIComponent(providerUsername)}&populate=profilePicture`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (userRes.ok) {
+        const users = await userRes.json();
+        const userData = Array.isArray(users) ? users[0] : null;
+        const pic = Array.isArray(userData?.profilePicture)
+          ? (userData.profilePicture[0] ?? null)
+          : (userData?.profilePicture ?? null);
+        if (pic?.url) {
+          setProfilePicture(
+            pic.url.startsWith("http") ? pic.url : `${API_URL}${pic.url}`,
+          );
+        }
+      }
+    }
+
+    // Step 3: fetch reviews
     const r2 = await fetch(
       `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer]=true&sort=createdAt:desc`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -123,7 +144,6 @@ export default function ProviderProfilePage({
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header bar */}
         <div className="flex items-center justify-between px-6 pt-5 pb-0">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
             Provider Profile
@@ -150,11 +170,20 @@ export default function ProviderProfilePage({
             {/* ── Hero Card ── */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-5">
-                <div
-                  className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-extrabold text-2xl flex-shrink-0`}
-                >
-                  {username.slice(0, 2).toUpperCase()}
-                </div>
+                {/* Avatar: real photo or gradient initials */}
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt={username}
+                    className="w-20 h-20 rounded-2xl object-cover flex-shrink-0 border border-gray-200"
+                  />
+                ) : (
+                  <div
+                    className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-extrabold text-2xl flex-shrink-0`}
+                  >
+                    {username.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h2 className="text-2xl font-bold text-gray-900">

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import ChatBox from "../components/ChatBox";
-import ProviderProfilePage from "./ProviderProfile.";
+import ChatBox from "../../components/ChatBox";
+import ProviderProfilePage from "./ViewProviderInfo";
 
 const BASE_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
 const getToken = () => localStorage.getItem("token");
@@ -70,25 +70,50 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-br from-purple-600 to-purple-700 px-8 py-8 text-white text-center">
-          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-            💳
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-8 h-8 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+              />
+            </svg>
           </div>
           <h2 className="text-2xl font-bold mb-1">Payment Required</h2>
           <p className="text-purple-200 text-sm">
             Complete your payment to continue using the platform
           </p>
         </div>
+
         {/* Warning banner */}
         <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-center gap-2">
-          <span className="text-amber-500 text-lg">⚠️</span>
+          <svg
+            className="w-5 h-5 text-amber-500 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
           <p className="text-xs text-amber-700 font-medium">
             Your provider has completed the job. Payment is required before you
             can proceed.
           </p>
         </div>
+
         {/* Body */}
         <div className="px-8 py-6 space-y-4">
-          {/* Amount */}
           <div className="bg-purple-50 border border-purple-100 rounded-2xl p-5 text-center">
             <p className="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">
               Total Amount Due
@@ -98,7 +123,6 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
             </p>
           </div>
 
-          {/* Details */}
           <div className="space-y-1">
             <div className="flex justify-between items-center py-3 border-b border-gray-100">
               <span className="text-sm text-gray-400 font-medium">Service</span>
@@ -132,8 +156,26 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
                 <span className="text-sm text-gray-400 font-medium">
                   Location
                 </span>
-                <span className="text-sm font-semibold text-gray-800">
-                  📍 {request.location}
+                <span className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                  <svg
+                    className="w-3.5 h-3.5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                  {request.location}
                 </span>
               </div>
             )}
@@ -181,7 +223,22 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
                 Redirecting to payment...
               </span>
             ) : (
-              "💳 Pay Now"
+              <span className="flex items-center justify-center gap-2">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                  />
+                </svg>
+                Pay Now
+              </span>
             )}
           </button>
         </div>
@@ -366,16 +423,90 @@ function ReviewModal({ request, onClose, onSubmitted }) {
 }
 
 // ─── Status Steps ─────────────────────────────────────────────────────────────
+// ─── Status Steps ─────────────────────────────────────────────────────────────
 const StatusSteps = ({ status }) => {
   const steps = [
-    { key: "pending", label: "Booked", icon: "📋" },
-    { key: "in_progress", label: "In Progress", icon: "🔧" },
+    {
+      key: "pending",
+      label: "Booked",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+          />
+        </svg>
+      ),
+    },
+    {
+      key: "in_progress",
+      label: "In Progress",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+          />
+        </svg>
+      ),
+    },
     {
       key: "awaiting_confirmation",
       label: "Awaiting Confirmation",
-      icon: "⏳",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
     },
-    { key: "completed", label: "Completed", icon: "✅" },
+    {
+      key: "completed",
+      label: "Completed",
+      icon: (
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+      ),
+    },
   ];
   const currentIndex = steps.findIndex((s) => s.key === status);
 
@@ -389,7 +520,7 @@ const StatusSteps = ({ status }) => {
           <div key={step.key} className="flex-1 flex items-start">
             <div className="flex flex-col items-center w-full">
               <div
-                className={`w-11 h-11 rounded-full flex items-center justify-center text-base font-bold border-2 transition-all duration-300 shadow-sm ${
+                className={`w-11 h-11 rounded-full flex items-center justify-center border-2 transition-all duration-300 shadow-sm ${
                   i < currentIndex
                     ? "bg-blue-500 border-blue-500 text-white"
                     : i === currentIndex
@@ -397,7 +528,23 @@ const StatusSteps = ({ status }) => {
                       : "bg-white border-gray-200 text-gray-300"
                 }`}
               >
-                {i < currentIndex ? "✓" : step.icon}
+                {i < currentIndex ? (
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                ) : (
+                  step.icon
+                )}
               </div>
               <span
                 className={`text-xs mt-3 font-semibold text-center leading-tight px-1 ${
@@ -475,34 +622,44 @@ const TrackingPage = ({ request, onBack }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="w-full bg-white shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-5">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition font-medium"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition font-medium"
           >
             <svg
               className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              strokeWidth={2}
             >
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth={2}
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Back to Bookings
+            My Bookings
           </button>
-          <div className="h-5 w-px bg-gray-200" />
-          <div>
-            <h1 className="text-sm font-semibold text-gray-800">
-              {liveRequest.title}
-            </h1>
-            <p className="text-xs text-gray-400">Live Tracking</p>
-          </div>
+          <svg
+            className="w-3 h-3 text-gray-300"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+          <span className="text-sm text-gray-800 font-semibold truncate">
+            {liveRequest.title}
+          </span>
           <div className="ml-auto">
             <span
               className={`text-xs font-semibold px-3 py-1 rounded-full ${statusColors[liveRequest.service_status] ?? "bg-gray-100 text-gray-500"}`}
@@ -511,13 +668,13 @@ const TrackingPage = ({ request, onBack }) => {
             </span>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-5">
+        {/* Status Steps */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <StatusSteps status={liveRequest.service_status} />
         </div>
 
+        {/* Map */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
@@ -533,17 +690,16 @@ const TrackingPage = ({ request, onBack }) => {
             </div>
             {hasProviderLocation ? (
               <span className="flex items-center gap-1.5 text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />{" "}
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                 Live
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-gray-400 font-medium bg-gray-50 border border-gray-200 px-3 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full" />{" "}
+                <span className="w-1.5 h-1.5 bg-gray-300 rounded-full" />
                 Awaiting provider
               </span>
             )}
           </div>
-
           <div style={{ height: "380px" }}>
             <MapContainer
               center={[mapCenter.lat, mapCenter.lng]}
@@ -560,7 +716,7 @@ const TrackingPage = ({ request, onBack }) => {
                   position={[customerLat, customerLng]}
                   icon={customerIcon}
                 >
-                  <Popup>📍 Service Location</Popup>
+                  <Popup>Service Location</Popup>
                 </Marker>
               )}
               {hasProviderLocation && (
@@ -568,22 +724,21 @@ const TrackingPage = ({ request, onBack }) => {
                   position={[providerLat, providerLng]}
                   icon={providerIcon}
                 >
-                  <Popup>🔧 {providerName}</Popup>
+                  <Popup>{providerName}</Popup>
                 </Marker>
               )}
             </MapContainer>
           </div>
-
           <div className="px-6 py-3 border-t border-gray-100 flex gap-5 text-xs text-gray-500 bg-gray-50">
             {hasCustomerLocation && (
               <span className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />{" "}
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
                 Service Location
               </span>
             )}
             {hasProviderLocation && (
               <span className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />{" "}
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" />
                 Provider Location
               </span>
             )}
@@ -595,6 +750,7 @@ const TrackingPage = ({ request, onBack }) => {
           </div>
         </div>
 
+        {/* Job Details */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-sm font-semibold text-gray-800 mb-5 uppercase tracking-wide">
             Job Details
@@ -623,6 +779,7 @@ const TrackingPage = ({ request, onBack }) => {
             ))}
           </div>
         </div>
+
         <ChatBox requestId={liveRequest.documentId} currentUser={getUser()} />
       </div>
     </div>
@@ -664,8 +821,25 @@ const BookingCard = ({
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-            🔧
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg
+              className="w-5 h-5 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
           </div>
           <div>
             <p className="font-semibold text-gray-800">{request.title}</p>
@@ -701,8 +875,26 @@ const BookingCard = ({
               )}
             </p>
             {request.location && (
-              <p className="text-xs text-gray-400 mt-0.5">
-                📍 {request.location}
+              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                {request.location}
               </p>
             )}
           </div>
@@ -716,8 +908,21 @@ const BookingCard = ({
 
       {request.service_status === "awaiting_confirmation" && (
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-3">
-          <p className="text-sm font-semibold text-purple-800 mb-1">
-            🔔 Provider has marked this job as complete
+          <p className="text-sm font-semibold text-purple-800 mb-1 flex items-center gap-2">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+              />
+            </svg>
+            Provider has marked this job as complete
           </p>
           <p className="text-xs text-purple-600 mb-3">
             Pay to confirm completion and release payment to the provider.
@@ -725,9 +930,22 @@ const BookingCard = ({
           <div className="flex gap-2">
             <button
               onClick={() => onConfirmCompletion(request)}
-              className="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transition"
+              className="flex items-center gap-1.5 px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transition"
             >
-              💳 Pay & Confirm
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              Pay & Confirm
             </button>
             <button
               onClick={() => onTrack(request)}
@@ -743,8 +961,26 @@ const BookingCard = ({
         {request.service_status === "in_progress" && (
           <button
             onClick={() => onTrack(request)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition"
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 transition"
           >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
             Track Provider
           </button>
         )}
@@ -758,15 +994,27 @@ const BookingCard = ({
         )}
         <button
           onClick={() => onTrack(request)}
-          className="px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
+          className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
         >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
           Message
         </button>
       </div>
     </div>
   );
 };
-
 // ─── Customer Dashboard ───────────────────────────────────────────────────────
 export default function CustomerDashboard() {
   const [view, setView] = useState("dashboard");
@@ -782,6 +1030,10 @@ export default function CustomerDashboard() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const navigate = useNavigate();
   const user = getUser();
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [view]);
 
   useEffect(() => {
     fetchData();
@@ -1024,7 +1276,21 @@ export default function CustomerDashboard() {
 
           {activeRequests.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center text-gray-400">
-              <p className="text-4xl mb-3">📋</p>
+              <div className="flex justify-center mb-3">
+                <svg
+                  className="w-10 h-10 text-gray-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
+                </svg>
+              </div>
               <p className="font-medium">No active bookings</p>
               <p className="text-sm mt-1">
                 Post a service request to get started
@@ -1172,18 +1438,38 @@ export default function CustomerDashboard() {
                                 ) : (
                                   <button
                                     onClick={() => setReviewRequest(req)}
-                                    className="text-amber-500 hover:text-amber-700 font-medium transition"
+                                    className="flex items-center gap-1 text-amber-500 hover:text-amber-700 font-medium transition"
                                   >
-                                    ⭐ Review
+                                    <svg
+                                      className="w-3.5 h-3.5"
+                                      fill="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.499z" />
+                                    </svg>
+                                    Review
                                   </button>
                                 )}
                               </>
                             ) : (
                               <button
                                 onClick={() => handleConfirmCompletion(req)}
-                                className="text-white bg-purple-600 hover:bg-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                                className="flex items-center gap-1.5 text-white bg-purple-600 hover:bg-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
                               >
-                                💳 Pay
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                                  />
+                                </svg>
+                                Pay
                               </button>
                             )}
                           </div>

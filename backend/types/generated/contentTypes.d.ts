@@ -1281,6 +1281,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
+    profilePicture: Schema.Attribute.Media<'images' | 'files', true>;
     provider: Schema.Attribute.String;
     provider_profile: Schema.Attribute.Relation<
       'oneToOne',

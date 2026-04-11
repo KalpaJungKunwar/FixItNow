@@ -1,29 +1,48 @@
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { useState, useCallback } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Header from "./components/header";
 import Footer from "./components/footer";
-import Login from "./pages/Login";
-import Home from "./pages/Home";
-import Services from "./pages/services";
-import Register from "./pages/Register";
-import CustomerDashboard from "./pages/CustomerDashboard";
-import ProtectedRoute from "./routes/ProtectedRoute";
-import ProviderDashboard from "./pages/providerdashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import PendingApproval from "./pages/PendingApproval";
+import ScrollToTop from "./components/ScrollToTop";
+import Login from "./pages/public/Login";
+import Home from "./pages/public/Home";
+import Register from "./pages/public/Register";
+import PendingApproval from "./pages/public/PendingApproval";
+import Services from "./pages/customer/services";
+import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CustomerProfile from "./pages/customer/CustomerProfile";
+import ProviderDashboard from "./pages/serviceProvider/providerdashboard";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
-import CustomerProfile from "./pages/CustomerProfile";
+import ProtectedRoute from "./routes/ProtectedRoute";
 
 const NO_LAYOUT_ROUTES = ["/providerdashboard", "/admin"];
 
 function Layout({ children }) {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [showWarning, setShowWarning] = useState(false);
   const hideLayout = NO_LAYOUT_ROUTES.includes(location.pathname);
 
+  const handleLogout = useCallback(() => {
+    setShowWarning(false);
+    logout();
+    navigate("/");
+  }, [logout, navigate]);
+  
   return (
     <div className="flex flex-col min-h-screen">
+      {showWarning && (
+        <SessionWarningModal onStay={handleStay} onLogout={handleLogout} />
+      )}
       {!hideLayout && <Header isLoggedIn={!!user} />}
       <main className="flex-grow">{children}</main>
       {!hideLayout && <Footer />}
@@ -34,17 +53,10 @@ function Layout({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Layout>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute allowedRole="customer">
-                <Home />
-              </ProtectedRoute>
-            }
-          />
-
+          <Route path="/" element={<Home />} />
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
@@ -85,7 +97,6 @@ function App() {
             }
           />
 
-          {/* Admin */}
           <Route
             path="/admin"
             element={
@@ -95,7 +106,6 @@ function App() {
             }
           />
 
-          {/* Payment */}
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/failed" element={<PaymentFailed />} />
           <Route path="/payment/verify" element={<PaymentSuccess />} />

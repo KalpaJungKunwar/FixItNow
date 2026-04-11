@@ -84,7 +84,7 @@ export default function Register() {
       navigate("/pending-approval");
     } catch (err) {
       setError(
-        err.response?.data?.error?.message || "Registration failed. Try again."
+        err.response?.data?.error?.message || "Registration failed. Try again.",
       );
     } finally {
       setLoading(false);
@@ -94,9 +94,10 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-
         {/* Header */}
-        <h2 className="text-3xl font-bold text-gray-800 mb-1">Create Account</h2>
+        <h2 className="text-3xl font-bold text-gray-800 mb-1">
+          Create Account
+        </h2>
         <p className="text-gray-500 text-sm mb-6">
           Join thousands of users getting things fixed today.
         </p>
@@ -109,7 +110,6 @@ export default function Register() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
           {/* Role */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -122,7 +122,9 @@ export default function Register() {
               className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="customer">Customer (I need services)</option>
-              <option value="provider">Service Provider (I offer services)</option>
+              <option value="provider">
+                Service Provider (I offer services)
+              </option>
             </select>
           </div>
 
@@ -282,7 +284,10 @@ export default function Register() {
             {/* ID File Upload */}
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Upload {idDocType === "citizenship" ? "Citizenship Certificate" : "Passport"}{" "}
+                Upload{" "}
+                {idDocType === "citizenship"
+                  ? "Citizenship Certificate"
+                  : "Passport"}{" "}
                 <span className="text-red-500">*</span>
               </label>
               <input
@@ -292,7 +297,9 @@ export default function Register() {
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-600 file:text-sm cursor-pointer"
               />
               {idDocument && (
-                <p className="text-xs text-green-600 mt-1">✓ {idDocument.name}</p>
+                <p className="text-xs text-green-600 mt-1">
+                  ✓ {idDocument.name}
+                </p>
               )}
               <p className="text-xs text-gray-400 mt-1">
                 Accepted: JPG, PNG, PDF (max 5MB)
@@ -313,7 +320,9 @@ export default function Register() {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-600 file:text-sm cursor-pointer"
                 />
                 {certificate && (
-                  <p className="text-xs text-green-600 mt-1">✓ {certificate.name}</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ {certificate.name}
+                  </p>
                 )}
                 <p className="text-xs text-gray-400 mt-1">
                   Trade license, skill certificate, or any relevant credential
@@ -330,9 +339,24 @@ export default function Register() {
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                <svg
+                  className="animate-spin h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"
+                  />
                 </svg>
                 Creating Account...
               </span>
@@ -345,7 +369,10 @@ export default function Register() {
         {/* Login link */}
         <p className="text-center text-sm text-gray-500 mt-4">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-500 font-medium hover:underline">
+          <Link
+            to="/login"
+            className="text-blue-500 font-medium hover:underline"
+          >
             Login here
           </Link>
         </p>

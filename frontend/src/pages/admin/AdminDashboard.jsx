@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import StatCard from "../components/admin/StatCard";
-import DonutChart from "../components/admin/DonutChart";
-import RecentTable from "../components/admin/RecentTable";
+import { useAuth } from "../../context/AuthContext";
+import StatCard from "../../components/admin/StatCard";
+import DonutChart from "../../components/admin/DonutChart";
+import RecentTable from "../../components/admin/RecentTable";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:1337/api";
 const MEDIA_URL = BASE_URL.replace("/api", "");
@@ -764,106 +764,106 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-       {activeTab === "overview" && (
-  <div className="flex flex-col gap-6">
-    {/* Row 1 — Traffic stats */}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Total Users"
-        value={users.total}
-        icon="users"
-        color="#6366f1"
-        sub={`${users.customers} customers · ${users.providers} providers`}
-      />
-      <StatCard
-        title="Service Requests"
-        value={serviceRequests.total}
-        icon="clipboard"
-        color="#f59e0b"
-        sub={`${serviceRequests.open} open · ${serviceRequests.completed} completed`}
-      />
-      <StatCard
-        title="Total Bids"
-        value={bids.total}
-        icon="currency"
-        color="#22c55e"
-        sub={`${bids.accepted} accepted · ${bids.pending} pending`}
-      />
-      <StatCard
-        title="Messages"
-        value={messages.total}
-        icon="chat"
-        color="#3b82f6"
-      />
-    </div>
+        {activeTab === "overview" && (
+          <div className="flex flex-col gap-6">
+            {/* Row 1 — Traffic stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                title="Total Users"
+                value={users.total}
+                icon="users"
+                color="#6366f1"
+                sub={`${users.customers} customers · ${users.providers} providers`}
+              />
+              <StatCard
+                title="Service Requests"
+                value={serviceRequests.total}
+                icon="clipboard"
+                color="#f59e0b"
+                sub={`${serviceRequests.open} open · ${serviceRequests.completed} completed`}
+              />
+              <StatCard
+                title="Total Bids"
+                value={bids.total}
+                icon="currency"
+                color="#22c55e"
+                sub={`${bids.accepted} accepted · ${bids.pending} pending`}
+              />
+              <StatCard
+                title="Messages"
+                value={messages.total}
+                icon="chat"
+                color="#3b82f6"
+              />
+            </div>
 
-    {/* Row 2 — Quality + Revenue */}
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Reviews"
-        value={reviews.total}
-        icon="star"
-        color="#eab308"
-        sub={`Avg rating: ${reviews.avgRating}`}
-      />
-      <StatCard
-        title="Avg Provider Rating"
-        value={providers.avgRating}
-        icon="medal"
-        color="#ec4899"
-      />
-      <StatCard
-        title="Platform Revenue"
-        value={`Rs. ${(stats.payments?.subscriptions?.revenue ?? 0).toLocaleString()}`}
-        icon="currency"
-        color="#22c55e"
-        sub="From provider subscriptions"
-      />
-      <StatCard
-        title="Provider Earnings"
-        value={`Rs. ${(stats.payments?.servicePayments ?? [])
-          .filter((p) => p.paymentStatus === "completed")
-          .reduce((sum, p) => sum + (p.amount || 0), 0)
-          .toLocaleString()}`}
-        icon="currency"
-        color="#f59e0b"
-        sub="Paid via service requests"
-      />
-    </div>
+            {/* Row 2 — Quality + Revenue */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard
+                title="Reviews"
+                value={reviews.total}
+                icon="star"
+                color="#eab308"
+                sub={`Avg rating: ${reviews.avgRating}`}
+              />
+              <StatCard
+                title="Avg Provider Rating"
+                value={providers.avgRating}
+                icon="medal"
+                color="#ec4899"
+              />
+              <StatCard
+                title="Platform Revenue"
+                value={`Rs. ${(stats.payments?.subscriptions?.revenue ?? 0).toLocaleString()}`}
+                icon="currency"
+                color="#22c55e"
+                sub="From provider subscriptions"
+              />
+              <StatCard
+                title="Provider Earnings"
+                value={`Rs. ${(stats.payments?.servicePayments ?? [])
+                  .filter((p) => p.paymentStatus === "completed")
+                  .reduce((sum, p) => sum + (p.amount || 0), 0)
+                  .toLocaleString()}`}
+                icon="currency"
+                color="#f59e0b"
+                sub="Paid via service requests"
+              />
+            </div>
 
-    {/* Donut charts */}
-    <div className="flex gap-5 flex-wrap">
-      <DonutChart
-        title="Users by Role"
-        data={[
-          { label: "Customers", value: users.customers },
-          { label: "Providers", value: users.providers },
-          { label: "Admins", value: users.admins },
-        ]}
-        colors={["#6366f1", "#22c55e", "#f59e0b"]}
-      />
-      <DonutChart
-        title="Service Request Status"
-        data={[
-          { label: "Open", value: serviceRequests.open },
-          { label: "In Progress", value: serviceRequests.inProgress },
-          { label: "Completed", value: serviceRequests.completed },
-          { label: "Cancelled", value: serviceRequests.cancelled },
-        ]}
-        colors={["#6366f1", "#f59e0b", "#22c55e", "#ef4444"]}
-      />
-      <DonutChart
-        title="Bid Status"
-        data={[
-          { label: "Pending", value: bids.pending },
-          { label: "Accepted", value: bids.accepted },
-          { label: "Rejected", value: bids.rejected },
-        ]}
-        colors={["#f59e0b", "#22c55e", "#ef4444"]}
-      />
-    </div>
-  </div>
-)}
+            {/* Donut charts */}
+            <div className="flex gap-5 flex-wrap">
+              <DonutChart
+                title="Users by Role"
+                data={[
+                  { label: "Customers", value: users.customers },
+                  { label: "Providers", value: users.providers },
+                  { label: "Admins", value: users.admins },
+                ]}
+                colors={["#6366f1", "#22c55e", "#f59e0b"]}
+              />
+              <DonutChart
+                title="Service Request Status"
+                data={[
+                  { label: "Open", value: serviceRequests.open },
+                  { label: "In Progress", value: serviceRequests.inProgress },
+                  { label: "Completed", value: serviceRequests.completed },
+                  { label: "Cancelled", value: serviceRequests.cancelled },
+                ]}
+                colors={["#6366f1", "#f59e0b", "#22c55e", "#ef4444"]}
+              />
+              <DonutChart
+                title="Bid Status"
+                data={[
+                  { label: "Pending", value: bids.pending },
+                  { label: "Accepted", value: bids.accepted },
+                  { label: "Rejected", value: bids.rejected },
+                ]}
+                colors={["#f59e0b", "#22c55e", "#ef4444"]}
+              />
+            </div>
+          </div>
+        )}
         {activeTab === "requests" && (
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">

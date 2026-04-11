@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -29,7 +29,6 @@ export default function Login() {
 
       const { jwt } = res.data;
 
-      // Fetch full user with roleType
       const userRes = await axios.get(
         `${API_URL}/users/me?populate[0]=role&populate[1]=provider_profile`,
         { headers: { Authorization: `Bearer ${jwt}` } },

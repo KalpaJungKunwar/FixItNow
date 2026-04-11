@@ -109,6 +109,14 @@
       "relation": "oneToMany",
       "target": "api::provider-subscription.provider-subscription",
       "mappedBy": "provider"
+    },
+    "profilePicture": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": [
+        "images",
+        "files"
+      ]
     }
   }
 }

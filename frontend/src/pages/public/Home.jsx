@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext"; // adjust path if needed
 
 const WrenchIcon = ({ className }) => (
   <svg
@@ -166,6 +167,21 @@ const StarIcon = ({ className, filled }) => (
     />
   </svg>
 );
+const LockIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={1.5}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+    />
+  </svg>
+);
 
 const categories = [
   { icon: WrenchIcon, label: "Plumbing", desc: "Pipes, leaks & fixtures" },
@@ -217,13 +233,9 @@ async function fetchLiveRequests() {
   const res = await fetch(
     `${STRAPI_URL}/api/service-requests?populate=bids&fields[0]=title&fields[1]=category&fields[2]=service_status&fields[3]=suggested_budget&sort=createdAt:desc&pagination[limit]=3`,
     { headers: { "Content-Type": "application/json" } },
-    
   );
   if (!res.ok) throw new Error("Failed to fetch");
   const json = await res.json();
-
-  console.log("raw json:", JSON.stringify(json, null, 2));
-
   return json.data.map((item) => ({
     id: item.id,
     title: item.title,
@@ -233,6 +245,7 @@ async function fetchLiveRequests() {
     bids: Array.isArray(item.bids) ? item.bids : (item.bids?.data ?? []),
   }));
 }
+
 const statusConfig = {
   pending: {
     label: "Open for Bids",
@@ -257,22 +270,21 @@ const categoryIcons = {
   Painting: PaintIcon,
 };
 
-function LiveMarketplace() {
+function LiveMarketplace({ isLoggedIn }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
-
     const load = async () => {
       setRefreshing(true);
       try {
         const data = await fetchLiveRequests();
         if (!cancelled && data.length > 0) setRequests(data);
       } catch {
-        if (!cancelled) setRequests(fallback);
+        // silently fail
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -280,7 +292,6 @@ function LiveMarketplace() {
         }
       }
     };
-
     load();
     const interval = setInterval(load, 15_000);
     return () => {
@@ -309,66 +320,89 @@ function LiveMarketplace() {
       </div>
       <p className="text-xs text-gray-400 mb-4">Recent requests &amp; bids</p>
 
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-4 bg-gray-100 rounded w-3/4 mb-1" />
-              <div className="h-3 bg-gray-100 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.map((r) => {
-            const Icon = categoryIcons[r.category] || WrenchIcon;
-            const avg = avgBid(r.bids);
-
-            const hasAcceptedBid = r.bids.some(
-              (b) => b.bid_status === "accepted",
-            );
-            const status = hasAcceptedBid
-              ? statusConfig.accepted
-              : statusConfig[r.service_status] || statusConfig.pending;
-            return (
-              <div
-                key={r.id}
-                className="flex items-start justify-between gap-3 border-b border-gray-50 pb-3 last:border-0 last:pb-0"
-              >
-                <div className="flex items-start gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Icon className="w-3.5 h-3.5 text-blue-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 leading-tight">
-                      {r.title}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {hasAcceptedBid
-                        ? `Won at Rs. ${Math.min(...r.bids.filter((b) => b.bid_status === "accepted").map((b) => b.amount))}`
-                        : r.bids.length > 0
-                          ? `${r.bids.length} bid${r.bids.length > 1 ? "s" : ""} · Avg Rs. ${avg}`
-                          : `Budget Rs. ${r.suggested_budget}`}
-                    </p>
-                  </div>
+      <div className="relative min-h-[170px]">
+        <div
+          className={`space-y-3 transition-all duration-200 ${!isLoggedIn ? "blur-sm pointer-events-none select-none" : ""}`}
+        >
+          {loading
+            ? [1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 bg-gray-100 rounded w-3/4 mb-1" />
+                  <div className="h-3 bg-gray-100 rounded w-1/2" />
                 </div>
-                <span
-                  className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${status.cls}`}
-                >
-                  {status.label}
-                </span>
-              </div>
-            );
-          })}
+              ))
+            : requests.map((r) => {
+                const Icon = categoryIcons[r.category] || WrenchIcon;
+                const avg = avgBid(r.bids);
+                const hasAcceptedBid = r.bids.some(
+                  (b) => b.bid_status === "accepted",
+                );
+                const status = hasAcceptedBid
+                  ? statusConfig.accepted
+                  : statusConfig[r.service_status] || statusConfig.pending;
+                return (
+                  <div
+                    key={r.id}
+                    className="flex items-start justify-between gap-3 border-b border-gray-50 pb-3 last:border-0 last:pb-0"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Icon className="w-3.5 h-3.5 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-800 leading-tight">
+                          {r.title}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {hasAcceptedBid
+                            ? `Won at Rs. ${Math.min(...r.bids.filter((b) => b.bid_status === "accepted").map((b) => b.amount))}`
+                            : r.bids.length > 0
+                              ? `${r.bids.length} bid${r.bids.length > 1 ? "s" : ""} · Avg Rs. ${avg}`
+                              : `Budget Rs. ${r.suggested_budget}`}
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${status.cls}`}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
+                );
+              })}
         </div>
-      )}
 
-      <Link
-        to="/services"
-        className="block mt-4 text-center bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium py-2 rounded-lg transition"
-      >
-        Explore Marketplace →
-      </Link>
+        {!isLoggedIn && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
+              <LockIcon className="w-4 h-4 text-blue-500" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-gray-800 leading-tight">
+                Sign in to view live bids
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                See real-time requests from your area
+              </p>
+            </div>
+            <button
+              onClick={() => navigate("/login")}
+              className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+            >
+              Log in
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isLoggedIn && (
+        <Link
+          to="/services"
+          className="block mt-4 text-center bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium py-2 rounded-lg transition"
+        >
+          Explore Marketplace →
+        </Link>
+      )}
     </div>
   );
 }
@@ -376,9 +410,26 @@ function LiveMarketplace() {
 export default function Home() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isLoggedIn = !!user;
+
+  // Redirect admins and providers to their own dashboards
+  useEffect(() => {
+    if (user?.roleType === "admin") navigate("/admin", { replace: true });
+    else if (user?.roleType === "provider")
+      navigate("/providerdashboard", { replace: true });
+  }, [user, navigate]);
+
+  const authNavigate = (path, options) => {
+    if (!isLoggedIn) {
+      navigate("/login", { state: { from: path } });
+    } else {
+      navigate(path, options);
+    }
+  };
 
   const handlePost = () => {
-    navigate("/services", query.trim() ? { state: { query } } : undefined);
+    authNavigate("/services", query.trim() ? { state: { query } } : undefined);
   };
 
   return (
@@ -452,7 +503,7 @@ export default function Home() {
             </div>
           </div>
 
-          <LiveMarketplace />
+          <LiveMarketplace isLoggedIn={isLoggedIn} />
         </div>
       </section>
 
@@ -467,7 +518,6 @@ export default function Home() {
           </h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-          {/* Connector line (desktop) */}
           <div className="hidden md:block absolute top-10 left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)] h-px bg-gradient-to-r from-gray-100 via-blue-200 to-gray-100" />
           {steps.map(({ Icon, title, step, desc }) => (
             <div
@@ -499,25 +549,26 @@ export default function Home() {
                 Browse by category
               </h2>
             </div>
-            <Link
-              to="/services"
+            <button
+              onClick={() => authNavigate("/services")}
               className="hidden md:flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
             >
               View all <ArrowRightIcon className="w-4 h-4" />
-            </Link>
+            </button>
           </div>
           <div className="flex flex-wrap gap-3">
             {categories.map(({ icon: Icon, label, desc }) => (
-              <Link
+              <button
                 key={label}
-                to="/services"
-                state={{ category: label }}
+                onClick={() =>
+                  authNavigate("/services", { state: { category: label } })
+                }
                 className="group flex items-center gap-3 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-200 rounded-xl px-5 py-4 transition-all duration-150"
               >
                 <div className="w-9 h-9 rounded-lg bg-white border border-gray-200 group-hover:border-blue-200 group-hover:bg-blue-50 flex items-center justify-center transition-colors shadow-sm">
-                  <Icon className="w-4.5 h-4.5 text-gray-500 group-hover:text-blue-500 transition-colors w-[18px] h-[18px]" />
+                  <Icon className="w-[18px] h-[18px] text-gray-500 group-hover:text-blue-500 transition-colors" />
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="font-semibold text-sm text-gray-700 group-hover:text-blue-700 transition-colors leading-tight">
                     {label}
                   </p>
@@ -525,7 +576,7 @@ export default function Home() {
                     {desc}
                   </p>
                 </div>
-              </Link>
+              </button>
             ))}
           </div>
         </div>
@@ -612,19 +663,13 @@ export default function Home() {
             verified professionals within minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to="/services"
+            <button
+              onClick={() => authNavigate("/services")}
               className="inline-flex items-center justify-center gap-2 bg-white text-blue-600 font-bold px-7 py-3 rounded-xl hover:bg-blue-50 transition-colors text-sm"
             >
               Post a Request
               <ArrowRightIcon className="w-4 h-4" />
-            </Link>
-            <Link
-              to="/services"
-              className="inline-flex items-center justify-center gap-2 bg-blue-400 hover:bg-blue-600 text-white font-semibold px-7 py-3 rounded-xl transition-colors text-sm border border-blue-300"
-            >
-              Browse Services
-            </Link>
+            </button>
           </div>
         </div>
       </section>

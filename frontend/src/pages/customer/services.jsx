@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import ProviderProfilePage from "./ProviderProfile.";
+import ProviderProfilePage from "./ViewProviderInfo";
 
 const API_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
 

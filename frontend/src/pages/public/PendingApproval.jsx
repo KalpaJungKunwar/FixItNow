@@ -4,7 +4,6 @@ export default function PendingApproval() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md w-full text-center">
-        
         {/* Icon */}
         <div className="w-20 h-20 bg-yellow-50 rounded-full flex items-center justify-center mx-auto mb-6">
           <span className="text-4xl">⏳</span>
@@ -60,8 +59,8 @@ export default function PendingApproval() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3 mb-6">
           <p className="text-yellow-700 text-xs leading-relaxed">
             ⚠️ You will <span className="font-semibold">not</span> be able to
-            log in until your account has been approved. Please check back
-            after 24–48 hours.
+            log in until your account has been approved. Please check back after
+            24–48 hours.
           </p>
         </div>
 
@@ -73,9 +72,7 @@ export default function PendingApproval() {
           >
             Go to Login
           </Link>
-          
         </div>
-
       </div>
     </div>
   );

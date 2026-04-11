@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { useState, useEffect, useRef } from "react";
-import ChatBox from "../components/ChatBox";
+import ChatBox from "../../components/ChatBox";
 
 const API_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
 
@@ -580,6 +580,7 @@ function Sidebar({ active, setActive, user, profile }) {
     { id: "requests", Icon: SearchIcon, label: "Find Requests" },
     { id: "bids", Icon: ClipboardIcon, label: "My Bids" },
     { id: "profile", Icon: UserIcon, label: "My Profile" },
+    { id: "reviews", Icon: StarIcon, label: "My Reviews" }, // ← add this
   ];
   return (
     <div className="w-56 min-h-screen bg-gray-900 flex flex-col flex-shrink-0 border-r border-white/5">
@@ -671,11 +672,22 @@ function EmptyState({ Icon, title, sub }) {
 // ─── Request Card ─────────────────────────────────────────────────────────────
 function RequestCard({ request, myBids, onBid, compact }) {
   const attrs = a(request);
+  // At the top of RequestCard, after extracting customer:
   const customer = attrs.customer?.data
     ? a(attrs.customer.data)
     : (attrs.customer ?? {});
   const username = customer?.username || "Customer";
   const colorClass = avatarColor(username);
+
+  // Get profile picture URL
+  const rawPic = Array.isArray(customer?.profilePicture)
+    ? (customer.profilePicture[0] ?? null)
+    : (customer?.profilePicture ?? null);
+  const picUrl = rawPic?.url
+    ? rawPic.url.startsWith("http")
+      ? rawPic.url
+      : `${API_URL}${rawPic.url}`
+    : null;
   const specialty = SPECIALTIES.find((s) => s.value === attrs.category);
   const photos = extractPhotos(attrs);
   const [showPhotos, setShowPhotos] = useState(false);
@@ -804,11 +816,19 @@ function RequestCard({ request, myBids, onBid, compact }) {
 
         <div className="p-5">
           <div className="flex items-start gap-3">
-            <div
-              className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
-            >
-              {username.slice(0, 2).toUpperCase()}
-            </div>
+            {picUrl ? (
+              <img
+                src={picUrl}
+                alt={username}
+                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-gray-200"
+              />
+            ) : (
+              <div
+                className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
+              >
+                {username.slice(0, 2).toUpperCase()}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <span className="font-bold text-sm text-gray-900">
@@ -1088,16 +1108,32 @@ function DashboardTab({
 function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
   const [filter, setFilter] = useState("all");
   const specialty = profile?.specialty;
+
+  const biddedRequestIds = new Set(
+    myBids
+      .map((b) => {
+        const sr = b?.service_request;
+        return sr?.documentId ?? sr?.id;
+      })
+      .filter(Boolean),
+  );
+
+  const getBidCount = (req) => {
+    const bids = req.bids;
+    if (!bids) return 0;
+    if (Array.isArray(bids)) return bids.length;
+    return 0;
+  };
+
   const filtered = requests.filter((req) => {
-    if (filter === "mine") return a(req).category === specialty;
+    if (filter === "mine") return req.category === specialty;
     if (filter === "no_bids") {
-      const bids = a(req).bids;
-      return (
-        (Array.isArray(bids) ? bids.length : (bids?.data?.length ?? 0)) === 0
-      );
+      const reqDocId = req.documentId ?? req.id;
+      return getBidCount(req) === 0 && !biddedRequestIds.has(reqDocId);
     }
     return true;
   });
+
   const filters = [
     { val: "all", label: "All Requests" },
     {
@@ -1106,6 +1142,7 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
     },
     { val: "no_bids", label: "No Bids Yet" },
   ];
+
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
@@ -1125,7 +1162,11 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
             <button
               key={f.val}
               onClick={() => setFilter(f.val)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${filter === f.val ? "bg-blue-500 text-white border-blue-500" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                filter === f.val
+                  ? "bg-blue-500 text-white border-blue-500"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+              }`}
             >
               {f.label}
             </button>
@@ -1651,7 +1692,13 @@ function PwChangeForm() {
   );
 }
 
-function ProfileTab({ profile, user, onProfileSaved }) {
+function ProfileTab({
+  profile,
+  user,
+  onProfileSaved,
+  onPicSaved,
+  onUserSaved,
+}) {
   const [form, setForm] = useState({
     specialty: profile?.specialty || "",
     location: profile?.location || "",
@@ -1669,11 +1716,156 @@ function ProfileTab({ profile, user, onProfileSaved }) {
       }
     })(),
   });
+
+  const [username, setUsername] = useState(user?.username || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountSuccess, setAccountSuccess] = useState(false);
+  const [accountError, setAccountError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const justUploadedRef = useRef(false);
+  const [picFile, setPicFile] = useState(null);
+  const [picPreview, setPicPreview] = useState(
+    user?.profilePicture?.url
+      ? user.profilePicture.url.startsWith("http")
+        ? user.profilePicture.url
+        : `${API_URL}${user.profilePicture.url}`
+      : null,
+  );
+
+  useEffect(() => {
+    if (justUploadedRef.current) {
+      justUploadedRef.current = false;
+      return;
+    }
+    if (user?.profilePicture?.url) {
+      const url = user.profilePicture.url;
+      setPicPreview(url.startsWith("http") ? url : `${API_URL}${url}`);
+    }
+  }, [user?.profilePicture?.url]);
+
+  const [picLoading, setPicLoading] = useState(false);
+  const [picError, setPicError] = useState("");
+  const [picSuccess, setPicSuccess] = useState(false);
+  const picInputRef = useRef(null);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  const handlePicChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setPicError("Image must be under 5MB.");
+      return;
+    }
+    setPicFile(file);
+    setPicPreview(URL.createObjectURL(file));
+    setPicError("");
+  };
+
+  const handlePicUpload = async () => {
+    if (!picFile) return;
+    setPicLoading(true);
+    setPicError("");
+    setPicSuccess(false);
+    try {
+      const meRes = await fetch(
+        `${API_URL}/api/users/${user.id}?populate=profilePicture`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const meData = await meRes.json();
+      const picData = Array.isArray(meData.profilePicture)
+        ? (meData.profilePicture[0] ?? null)
+        : (meData.profilePicture ?? null);
+      const existingId = picData?.id ?? null;
+
+      const formData = new FormData();
+      formData.append("files", picFile);
+      formData.append("ref", "plugin::users-permissions.user");
+      formData.append("refId", user.id);
+      formData.append("field", "profilePicture");
+
+      const res = await fetch(`${API_URL}/api/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: formData,
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Upload failed");
+      }
+      const uploaded = await res.json();
+      const newUrl = uploaded[0]?.url;
+
+      if (existingId) {
+        await fetch(`${API_URL}/api/upload/files/${existingId}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${getToken()}` },
+        }).catch(() => {});
+      }
+
+      if (newUrl) {
+        const fullUrl = newUrl.startsWith("http")
+          ? newUrl
+          : `${API_URL}${newUrl}`;
+        justUploadedRef.current = true;
+        setPicPreview(fullUrl);
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        localStorage.setItem(
+          "user",
+          JSON.stringify({ ...stored, profilePicture: { ...uploaded[0] } }),
+        );
+      }
+
+      setPicSuccess(true);
+      setPicFile(null);
+      if (onPicSaved) onPicSaved();
+      setTimeout(() => setPicSuccess(false), 3000);
+    } catch (e) {
+      setPicError(e.message);
+    } finally {
+      setPicLoading(false);
+    }
+  };
+
+  // ── Save username + email ──
+  const handleAccountSave = async () => {
+    setAccountSaving(true);
+    setAccountError("");
+    setAccountSuccess(false);
+    try {
+      const res = await fetch(`${API_URL}/api/users/${user.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ username, email }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Update failed");
+      }
+      const updated = await res.json();
+      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      const updatedUser = {
+        ...stored,
+        username: updated.username,
+        email: updated.email,
+      };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      if (onUserSaved) onUserSaved(updatedUser);
+      setAccountSuccess(true);
+      setTimeout(() => setAccountSuccess(false), 3000);
+    } catch (e) {
+      setAccountError(e.message);
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  // ── Save provider profile ──
   const handleSave = async () => {
     setLoading(true);
     setError("");
@@ -1721,8 +1913,8 @@ function ProfileTab({ profile, user, onProfileSaved }) {
     }
   };
 
-  const username = user?.username || "Provider";
-  const colorClass = avatarColor(username);
+  const username_ = user?.username || "Provider";
+  const colorClass = avatarColor(username_);
 
   return (
     <div className="max-w-7xl">
@@ -1734,41 +1926,159 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           My Profile
         </h2>
       </div>
-      <div className="bg-gray-900 rounded-2xl p-6 mb-5 flex items-center gap-4 relative overflow-hidden">
+
+      {/* ── Profile header banner ── */}
+      <div className="bg-gray-900 rounded-2xl p-6 mb-5 flex items-center gap-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/[0.03] -translate-y-1/2 translate-x-1/2" />
-        <div
-          className={`w-14 h-14 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-extrabold text-xl flex-shrink-0`}
-        >
-          {username.slice(0, 2).toUpperCase()}
+
+        <div className="relative flex-shrink-0 group">
+          {picPreview ? (
+            <img
+              src={picPreview}
+              alt="Profile"
+              className="w-16 h-16 rounded-xl object-cover border-2 border-white/10"
+            />
+          ) : (
+            <div
+              className={`w-16 h-16 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-extrabold text-xl`}
+            >
+              {username_.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <button
+            onClick={() => picInputRef.current?.click()}
+            className="absolute inset-0 rounded-xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+            title="Change photo"
+          >
+            <svg
+              className="w-5 h-5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
+              />
+            </svg>
+          </button>
+          <input
+            ref={picInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePicChange}
+          />
         </div>
+
         <div className="flex-1">
-          <p className="text-lg font-bold text-white">{username}</p>
+          <p className="text-lg font-bold text-white">{username_}</p>
           <p className="text-xs text-white/40 mt-0.5">{user?.email}</p>
-          <div className="flex gap-4 mt-2">
+          <div className="flex gap-3 mt-2 flex-wrap">
             {profile?.rating > 0 && (
-              <div className="flex items-center gap-2 bg-amber-500/10 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-1.5 bg-amber-500/10 rounded-lg px-3 py-1.5">
                 <StarIcon className="w-3.5 h-3.5 text-amber-400" filled />
                 <span className="text-xs font-bold text-amber-400">
                   {Number(profile.rating).toFixed(1)} Rating
                 </span>
               </div>
             )}
+            {picFile && (
+              <button
+                onClick={handlePicUpload}
+                disabled={picLoading}
+                className="flex items-center gap-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {picLoading ? "Uploading..." : "Save Photo"}
+              </button>
+            )}
+            {picSuccess && (
+              <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-lg">
+                <CheckIcon className="w-3 h-3" /> Photo saved!
+              </span>
+            )}
           </div>
+          {picError && <p className="text-xs text-red-400 mt-1">{picError}</p>}
+          {picFile && !picLoading && (
+            <p className="text-[10px] text-white/30 mt-1">
+              Click "Save Photo" to upload your new picture
+            </p>
+          )}
         </div>
+
         {profile?.verified && (
           <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/20">
             <ShieldCheckIcon className="w-3.5 h-3.5" /> Verified
           </span>
         )}
       </div>
+
       <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 mb-5 text-xs text-amber-700">
         <span className="font-semibold">Note:</span> Your rating is
         automatically updated based on customer reviews and cannot be edited
         manually.
       </div>
+
+      {/* ── Account Info (username + email) ── */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-5">
+        <h3 className="text-sm font-bold text-gray-900 mb-5">
+          Account Information
+        </h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              Username
+            </label>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
+              placeholder="Your username"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
+              placeholder="name@example.com"
+            />
+          </div>
+        </div>
+        {accountError && (
+          <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600 mb-4">
+            {accountError}
+          </div>
+        )}
+        {accountSuccess && (
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5 text-xs text-emerald-600 font-semibold mb-4 flex items-center gap-1.5">
+            <CheckIcon className="w-3.5 h-3.5" /> Account updated successfully!
+          </div>
+        )}
+        <button
+          onClick={handleAccountSave}
+          disabled={accountSaving}
+          className="bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors"
+        >
+          {accountSaving ? "Saving..." : "Save Changes"}
+        </button>
+      </div>
+
+      {/* ── Provider profile form ── */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-5">
-          Edit Information
+          Provider Information
         </h3>
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">
           Location *
@@ -1842,6 +2152,7 @@ function ProfileTab({ profile, user, onProfileSaved }) {
           {loading ? "Saving..." : "Save Changes"}
         </button>
       </div>
+
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mt-5">
         <h3 className="text-sm font-bold text-gray-900 mb-1">
           Change Password
@@ -1854,7 +2165,6 @@ function ProfileTab({ profile, user, onProfileSaved }) {
     </div>
   );
 }
-
 function SubscriptionPaywall({ onSubscribe, loading }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1893,8 +2203,232 @@ function SubscriptionPaywall({ onSubscribe, loading }) {
   );
 }
 
-// ─── Main ──────────────────────────────────────────────────────────────────────
+function ReviewsTab({ providerId }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ avg: 0, total: 0, breakdown: {} });
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const fetchReviews = async () => {
+    try {
+      // First get the provider's profile documentId
+      const profileRes = await fetch(
+        `${API_URL}/api/users/${providerId}?populate[provider_profile]=true`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const profileData = await profileRes.json();
+      const raw = profileData?.provider_profile;
+      const profileDocumentId = raw?.documentId ?? raw?.id;
+
+      if (!profileDocumentId) {
+        setLoading(false);
+        return;
+      }
+
+      // Now fetch reviews using the correct relation field
+      const res = await fetch(
+        `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer][populate]=profilePicture&sort=createdAt:desc&pagination[limit]=100`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const data = await res.json();
+      const list = (data?.data || []).map((r) => ({
+        ...(r.attributes ?? r),
+        documentId: r.documentId ?? r.id,
+        customer: r.customer?.data
+          ? (r.customer.data.attributes ?? r.customer.data)
+          : (r.customer ?? {}),
+      }));
+      setReviews(list);
+
+      if (list.length > 0) {
+        const total = list.length;
+        const avg = list.reduce((s, r) => s + (r.rating ?? 0), 0) / total;
+        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        list.forEach((r) => {
+          const star = Math.round(r.rating ?? 0);
+          if (breakdown[star] !== undefined) breakdown[star]++;
+        });
+        setStats({ avg, total, breakdown });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    );
+
+  return (
+    <div>
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-blue-500 mb-1">
+          Feedback
+        </p>
+        <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+          My Reviews
+        </h2>
+      </div>
+
+      {reviews.length === 0 ? (
+        <EmptyState
+          Icon={StarIcon}
+          title="No reviews yet"
+          sub="Reviews from customers will appear here after completed jobs."
+        />
+      ) : (
+        <>
+          {/* ── Summary card ── */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 flex gap-8 flex-wrap">
+            {/* Big average */}
+            <div className="flex flex-col items-center justify-center min-w-[100px]">
+              <p className="text-5xl font-extrabold text-gray-900 tracking-tight">
+                {stats.avg.toFixed(1)}
+              </p>
+              <div className="flex gap-0.5 mt-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <StarIcon
+                    key={s}
+                    className={`w-4 h-4 ${s <= Math.round(stats.avg) ? "text-amber-400" : "text-gray-200"}`}
+                    filled={s <= Math.round(stats.avg)}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {stats.total} review{stats.total !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {/* Breakdown bars */}
+            <div className="flex-1 min-w-[200px] space-y-2 justify-center flex flex-col">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = stats.breakdown[star] ?? 0;
+                const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
+                return (
+                  <div key={star} className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 w-8 justify-end">
+                      <span className="text-xs font-semibold text-gray-500">
+                        {star}
+                      </span>
+                      <StarIcon className="w-3 h-3 text-amber-400" filled />
+                    </div>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400 w-6 text-right">
+                      {count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Review list ── */}
+          <div className="space-y-3">
+            {reviews.map((review) => {
+              const customer = review.customer ?? {};
+              const customerName = customer?.username || "Customer";
+              const colorClass = avatarColor(customerName);
+              const rawPic = Array.isArray(customer?.profilePicture)
+                ? (customer.profilePicture[0] ?? null)
+                : (customer?.profilePicture ?? null);
+              const picUrl = rawPic?.url
+                ? rawPic.url.startsWith("http")
+                  ? rawPic.url
+                  : `${API_URL}${rawPic.url}`
+                : null;
+              const rating = review.rating ?? 0;
+
+              return (
+                <div
+                  key={review.documentId ?? review.id}
+                  className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Customer avatar */}
+                    {picUrl ? (
+                      <img
+                        src={picUrl}
+                        alt={customerName}
+                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-gray-100"
+                      />
+                    ) : (
+                      <div
+                        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
+                      >
+                        {customerName.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-gray-900">
+                          {customerName}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {timeSince(review.createdAt)}
+                        </span>
+                      </div>
+
+                      {/* Stars */}
+                      <div className="flex gap-0.5 mt-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <StarIcon
+                            key={s}
+                            className={`w-3.5 h-3.5 ${s <= rating ? "text-amber-400" : "text-gray-200"}`}
+                            filled={s <= rating}
+                          />
+                        ))}
+                        <span className="text-xs text-gray-400 ml-1 font-semibold">
+                          {rating}/5
+                        </span>
+                      </div>
+
+                      {/* Comment */}
+                      {review.comment ? (
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {review.comment}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">
+                          No written review.
+                        </p>
+                      )}
+
+                      {/* Job reference if available */}
+                      {review.service_request?.title && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
+                          <ClipboardIcon className="w-3 h-3" />
+                          {review.service_request.title}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ProviderDashboard() {
+  const { user: authUser, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -1906,18 +2440,24 @@ export default function ProviderDashboard() {
   const [subLoading, setSubLoading] = useState(true);
   const [subInitiating, setSubInitiating] = useState(false);
 
+  const handleUserSaved = (updatedUser) => setUser(updatedUser);
+
   useEffect(() => {
-    const u = getUser();
-    setUser(u);
-    if (u)
-      Promise.all([
-        fetchProfile(u),
-        fetchRequests(),
-        fetchMyBids(u),
-        fetchPayments(u),
-      ]).finally(() => setLoading(false));
-    else setLoading(false);
-  }, []);
+    if (authLoading) return;
+
+    if (!authUser) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
+    setUser(authUser);
+    Promise.all([
+      fetchProfile(authUser),
+      fetchRequests(),
+      fetchMyBids(authUser),
+      fetchPayments(authUser),
+    ]).finally(() => setLoading(false));
+  }, [authUser, authLoading]);
 
   useEffect(() => {
     const checkSub = async () => {
@@ -1960,13 +2500,23 @@ export default function ProviderDashboard() {
   const fetchProfile = async (u) => {
     try {
       const res = await fetch(
-        `${API_URL}/api/users/${u.id}?populate[provider_profile][populate]=*`,
+        `${API_URL}/api/users/${u.id}?populate[provider_profile][populate]=*&populate=profilePicture`,
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       const data = await res.json();
+
+      // profilePicture comes back as an array from Strapi
+      const profilePicture = Array.isArray(data.profilePicture)
+        ? (data.profilePicture[0] ?? null)
+        : (data.profilePicture ?? null);
+
+      const updatedUser = { ...u, profilePicture };
+      setUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+
       const raw = data?.provider_profile;
       if (!raw) {
-        console.warn("[fetchProfile] No profile found for user", u.id);
+        console.warn("[fetchProfile] No profile found");
         return;
       }
       const p = raw.attributes ?? raw;
@@ -1978,11 +2528,10 @@ export default function ProviderDashboard() {
     }
   };
 
-  // ── fetch requests WITH photos populated ──
   const fetchRequests = async () => {
     try {
       const res = await fetch(
-        `${API_URL}/api/service-requests?filters[service_status][$eq]=pending&populate[customer]=true&populate[bids][fields][0]=id&populate[photos]=true&sort=createdAt:desc&pagination[limit]=50`,
+        `${API_URL}/api/service-requests?filters[service_status][$eq]=pending&populate[customer][populate]=profilePicture&populate[bids][fields][0]=id&populate[photos]=true&sort=createdAt:desc&pagination[limit]=50`,
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       const data = await res.json();
@@ -2115,8 +2664,11 @@ export default function ProviderDashboard() {
             profile={profile}
             user={user}
             onProfileSaved={(updated) => setProfile(updated)}
+            onPicSaved={() => fetchProfile(user)}
+            onUserSaved={handleUserSaved} // ← add this
           />
         )}
+        {activeTab === "reviews" && <ReviewsTab providerId={user?.id} />}
       </main>
     </div>
   );

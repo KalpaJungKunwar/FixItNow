@@ -18,17 +18,17 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4">Services</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/services/plumbing" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Plumbing
                 </Link>
               </li>
               <li>
-                <Link to="/services/cleaning" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Cleaning
                 </Link>
               </li>
               <li>
-                <Link to="/services/electrical" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Electrical
                 </Link>
               </li>
@@ -39,17 +39,17 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4">Company</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/about" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link to="/careers" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Careers
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Contact
                 </Link>
               </li>
@@ -60,17 +60,17 @@ export default function Footer() {
             <h3 className="text-sm font-semibold text-white mb-4">Support</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/help" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Help Center
                 </Link>
               </li>
               <li>
-                <Link to="/privacy" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link to="/terms" className="hover:text-white">
+                <Link to="/#" className="hover:text-white">
                   Terms of Service
                 </Link>
               </li>
