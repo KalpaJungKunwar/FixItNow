@@ -82,6 +82,46 @@ export default {
     ctx.body = users;
   },
 
+  async getProviderProfiles(ctx: Context) {
+    // Manually decode JWT since auth: false bypasses the middleware
+    const authHeader = ctx.request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return ctx.unauthorized("No token provided");
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    try {
+      const decoded = await strapi
+        .plugin("users-permissions")
+        .service("jwt")
+        .verify(token);
+
+      const fullUser = await strapi
+        .query("plugin::users-permissions.user")
+        .findOne({ where: { id: decoded.id }, select: ["id", "roleType"] });
+
+      if (!fullUser || fullUser.roleType !== "admin") {
+        return ctx.forbidden("Admins only");
+      }
+    } catch (e) {
+      return ctx.unauthorized("Invalid token");
+    }
+
+    const profiles = await strapi.entityService.findMany(
+      "api::provider-profile.provider-profile",
+      {
+        populate: {
+          user: {
+            fields: ["id", "username", "email"],
+          },
+        } as any,
+        sort: { createdAt: "desc" } as any,
+        limit: 200,
+      },
+    );
+    ctx.body = profiles;
+  },
+
   async deleteUser(ctx: Context) {
     if (!(await requireAdmin(ctx))) return;
 
@@ -269,9 +309,12 @@ export default {
       limit: 20,
     });
 
-    const providerProfiles = await safeFind("api::provider-profile.provider-profile", {
-      filters: { user: { id } },
-    });
+    const providerProfiles = await safeFind(
+      "api::provider-profile.provider-profile",
+      {
+        filters: { user: { id } },
+      },
+    );
     const providerProfileId = providerProfiles?.[0]?.id ?? null;
     const reviewsReceived = providerProfileId
       ? await safeFind("api::review.review", {
@@ -288,6 +331,13 @@ export default {
       limit: 30,
     });
 
-    ctx.body = { user, serviceRequests, bids, reviews, reviewsReceived, messages };
+    ctx.body = {
+      user,
+      serviceRequests,
+      bids,
+      reviews,
+      reviewsReceived,
+      messages,
+    };
   },
 };

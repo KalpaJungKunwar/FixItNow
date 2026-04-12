@@ -542,13 +542,11 @@ function ProviderProfilesTab({ token }) {
   const fetchProfiles = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `${BASE_URL}/provider-profiles?populate=*&sort=createdAt:desc&pagination[limit]=200`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
+      const res = await fetch(`${BASE_URL}/admin-approval/provider-profiles`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
-      console.log("First profile sample:", data.data?.[0]);
-      setProfiles(data.data || []);
+      setProfiles(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -609,12 +607,13 @@ function ProviderProfilesTab({ token }) {
 
   const filtered = profiles.filter((p) => {
     const a = p.attributes ?? p;
-    const userObj =
-      a.user?.data?.attributes ?? a.user?.attributes ?? a.user ?? {};
-    const username = userObj.username ?? "";
+    // In both filtered and the render map:
+    const username = a.user?.username ?? "—";
+    const email = a.user?.email ?? "—";
     const matchSearch =
       !search ||
       username.toLowerCase().includes(search.toLowerCase()) ||
+      email.toLowerCase().includes(search.toLowerCase()) ||
       a.location?.toLowerCase().includes(search.toLowerCase());
     const matchSpec =
       filterSpecialty === "all" || a.specialty === filterSpecialty;
@@ -711,13 +710,8 @@ function ProviderProfilesTab({ token }) {
       ) : (
         paginated.map((profile) => {
           const a = profile.attributes ?? profile;
-          const userObj =
-            a.user?.data?.attributes ??
-            a.user?.attributes ?? 
-            a.user ??
-            {};
-          const username = userObj.username ?? "—";
-          const email = userObj.email ?? "—";
+          const username = a.user?.username ?? "—";
+          const email = a.user?.email ?? "—";
           return (
             <div
               key={profile.id}

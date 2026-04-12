@@ -48,5 +48,14 @@ export default {
       handler: "admin-approval.unblockUser",
       config: { policies: [] },
     },
+    {
+      method: "GET",
+      path: "/admin-approval/provider-profiles",
+      handler: "admin-approval.getProviderProfiles",
+      config: {
+        policies: [],
+        auth: false,
+      },
+    },
   ],
 };
