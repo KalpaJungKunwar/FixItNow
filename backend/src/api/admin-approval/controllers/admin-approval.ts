@@ -83,7 +83,6 @@ export default {
   },
 
   async getProviderProfiles(ctx: Context) {
-    // Manually decode JWT since auth: false bypasses the middleware
     const authHeader = ctx.request.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
       return ctx.unauthorized("No token provided");

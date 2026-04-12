@@ -607,7 +607,6 @@ function ProviderProfilesTab({ token }) {
 
   const filtered = profiles.filter((p) => {
     const a = p.attributes ?? p;
-    // In both filtered and the render map:
     const username = a.user?.username ?? "—";
     const email = a.user?.email ?? "—";
     const matchSearch =
