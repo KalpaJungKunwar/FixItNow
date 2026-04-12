@@ -1,4 +1,3 @@
-// PaymentSuccess.jsx
 import { useSearchParams, useNavigate } from "react-router-dom";
 
 const PaymentSuccess = () => {
@@ -11,13 +10,10 @@ const PaymentSuccess = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 flex items-center justify-center px-4">
       <div className="w-full max-w-lg">
-        {/* Card */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-          {/* Top accent bar */}
           <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-green-500" />
 
           <div className="px-10 py-12 text-center">
-            {/* Icon */}
             <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-emerald-50">
               <svg
                 className="w-10 h-10 text-emerald-500"
@@ -45,7 +41,6 @@ const PaymentSuccess = () => {
                 : "Your payment has been processed successfully. The service provider has been notified."}
             </p>
 
-            {/* Detail box */}
             <div className="bg-gray-50 rounded-2xl p-5 mb-8 text-left space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">
@@ -90,7 +85,6 @@ const PaymentSuccess = () => {
           </div>
         </div>
 
-        {/* Footer note */}
         <p className="text-center text-xs text-gray-400 mt-5">
           A confirmation has been recorded. Contact support if you have any
           issues.

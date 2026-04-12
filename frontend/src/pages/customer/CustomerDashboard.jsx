@@ -47,13 +47,11 @@ const RecenterMap = ({ lat, lng }) => {
   return null;
 };
 
-// ─── Payment Modal ────────────────────────────────────────────────────────────
 function PaymentModal({ request, onConfirm, onClose, loading }) {
   const acceptedBid = request.bids?.find((b) => b.bid_status === "accepted");
   const provider = acceptedBid?.provider;
   const amount = acceptedBid?.amount;
 
-  // Prevent keyboard escape or any interaction outside
   useEffect(() => {
     const block = (e) => {
       if (e.key === "Escape") e.stopPropagation();
@@ -68,7 +66,6 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
-        {/* Header */}
         <div className="bg-gradient-to-br from-purple-600 to-purple-700 px-8 py-8 text-white text-center">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg
@@ -91,7 +88,6 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
           </p>
         </div>
 
-        {/* Warning banner */}
         <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-center gap-2">
           <svg
             className="w-5 h-5 text-amber-500 flex-shrink-0"
@@ -112,7 +108,6 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
           </p>
         </div>
 
-        {/* Body */}
         <div className="px-8 py-6 space-y-4">
           <div className="bg-purple-50 border border-purple-100 rounded-2xl p-5 text-center">
             <p className="text-xs text-purple-400 uppercase tracking-widest font-semibold mb-1">
@@ -247,7 +242,6 @@ function PaymentModal({ request, onConfirm, onClose, loading }) {
   );
 }
 
-// ─── Review Modal ─────────────────────────────────────────────────────────────
 function ReviewModal({ request, onClose, onSubmitted }) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
@@ -422,8 +416,6 @@ function ReviewModal({ request, onClose, onSubmitted }) {
   );
 }
 
-// ─── Status Steps ─────────────────────────────────────────────────────────────
-// ─── Status Steps ─────────────────────────────────────────────────────────────
 const StatusSteps = ({ status }) => {
   const steps = [
     {
@@ -572,7 +564,6 @@ const StatusSteps = ({ status }) => {
   );
 };
 
-// ─── Tracking Page ────────────────────────────────────────────────────────────
 const TrackingPage = ({ request, onBack }) => {
   const [liveRequest, setLiveRequest] = useState(request);
   const pollRef = useRef(null);
@@ -623,7 +614,6 @@ const TrackingPage = ({ request, onBack }) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-5">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-2">
           <button
             onClick={onBack}
@@ -669,12 +659,10 @@ const TrackingPage = ({ request, onBack }) => {
           </div>
         </div>
 
-        {/* Status Steps */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
           <StatusSteps status={liveRequest.service_status} />
         </div>
 
-        {/* Map */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <div>
@@ -750,7 +738,6 @@ const TrackingPage = ({ request, onBack }) => {
           </div>
         </div>
 
-        {/* Job Details */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-sm font-semibold text-gray-800 mb-5 uppercase tracking-wide">
             Job Details
@@ -786,7 +773,6 @@ const TrackingPage = ({ request, onBack }) => {
   );
 };
 
-// ─── Booking Card ─────────────────────────────────────────────────────────────
 const BookingCard = ({
   request,
   onTrack,
@@ -1015,7 +1001,7 @@ const BookingCard = ({
     </div>
   );
 };
-// ─── Customer Dashboard ───────────────────────────────────────────────────────
+
 export default function CustomerDashboard() {
   const [view, setView] = useState("dashboard");
   const [trackingRequest, setTrackingRequest] = useState(null);
@@ -1130,12 +1116,10 @@ export default function CustomerDashboard() {
     }
   };
 
-  // Opens the payment modal
   const handleConfirmCompletion = (req) => {
     setPaymentRequest(req);
   };
 
-  // Called when user clicks "Pay Now" inside the modal
   const confirmCompletion = async () => {
     const req = paymentRequest;
     try {
@@ -1210,7 +1194,6 @@ export default function CustomerDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Payment modal — no onClose prop so it cannot be dismissed */}
       {paymentRequest && (
         <PaymentModal
           request={paymentRequest}

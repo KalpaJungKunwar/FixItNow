@@ -169,7 +169,6 @@ export default {
       } as any,
     });
 
-    // --- Payment data ---
     const [allSubscriptions, allServicePayments] = await Promise.all([
       strapi.db
         .query("api::provider-subscription.provider-subscription")

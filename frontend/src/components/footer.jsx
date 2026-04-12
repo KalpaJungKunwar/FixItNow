@@ -5,7 +5,6 @@ export default function Footer() {
     <footer className="bg-slate-900 text-slate-300">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-          {/* Brand */}
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">FixitNow</h2>
             <p className="text-sm text-slate-400 leading-relaxed">

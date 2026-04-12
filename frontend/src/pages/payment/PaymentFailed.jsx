@@ -1,4 +1,3 @@
-// PaymentFailed.jsx
 import { useNavigate } from "react-router-dom";
 
 const PaymentFailed = () => {
@@ -7,13 +6,10 @@ const PaymentFailed = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-rose-50 flex items-center justify-center px-4">
       <div className="w-full max-w-lg">
-        {/* Card */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-          {/* Top accent bar */}
           <div className="h-1.5 bg-gradient-to-r from-red-400 to-rose-500" />
 
           <div className="px-10 py-12 text-center">
-            {/* Icon */}
             <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 ring-8 ring-red-50">
               <svg
                 className="w-10 h-10 text-red-500"
@@ -39,7 +35,6 @@ const PaymentFailed = () => {
               method.
             </p>
 
-            {/* Reasons box */}
             <div className="bg-gray-50 rounded-2xl p-5 mb-8 text-left">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
                 Common reasons for failure
@@ -76,7 +71,6 @@ const PaymentFailed = () => {
           </div>
         </div>
 
-        {/* Footer note */}
         <p className="text-center text-xs text-gray-400 mt-5">
           Need help? Contact our support team for assistance.
         </p>

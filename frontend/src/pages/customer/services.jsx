@@ -355,7 +355,6 @@ function avatarColor(str) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-// ─── Request Form Modal ───────────────────────────────────────────────────────
 function RequestFormModal({ onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -681,7 +680,6 @@ function RequestFormModal({ onClose, onSuccess }) {
   );
 }
 
-// ─── Delete Confirm Modal ─────────────────────────────────────────────────────
 function DeleteConfirmModal({ onConfirm, onCancel, loading }) {
   return (
     <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -716,7 +714,6 @@ function DeleteConfirmModal({ onConfirm, onCancel, loading }) {
   );
 }
 
-// ─── Bid Card ─────────────────────────────────────────────────────────────────
 function BidCard({ bid, onAccept, onViewProfile }) {
   const attrs = a(bid);
   const provider = attrs.provider?.data
@@ -821,7 +818,6 @@ function BidCard({ bid, onAccept, onViewProfile }) {
   );
 }
 
-// ─── Active Request Panel ─────────────────────────────────────────────────────
 function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
   const attrs = a(request);
   const catObj = CATEGORIES.find((c) => c.value === attrs.category);
@@ -1040,7 +1036,6 @@ function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
   );
 }
 
-// ─── Service Hero ─────────────────────────────────────────────────────────────
 function ServiceHero({ onOpenForm }) {
   return (
     <div className="max-w-6xl mx-auto px-6 pb-16">
@@ -1172,7 +1167,6 @@ function ServiceHero({ onOpenForm }) {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 const REQUESTS_PER_PAGE = 5;
 
 export default function ServicePage() {
@@ -1270,7 +1264,6 @@ export default function ServicePage() {
       activeRequests.find((r) => r.id == requestId),
     ).documentId;
     try {
-      // Accept the selected bid
       await fetch(`${API_URL}/api/bids/${bidDocId}`, {
         method: "PUT",
         headers: {
@@ -1280,7 +1273,6 @@ export default function ServicePage() {
         body: JSON.stringify({ data: { bid_status: "accepted" } }),
       });
 
-      // Reject all other pending bids for the same request
       const otherPendingBids = bidsMap[requestId].filter(
         (b) => b.id !== bidId && a(b).bid_status === "pending",
       );
@@ -1297,7 +1289,6 @@ export default function ServicePage() {
         ),
       );
 
-      // Update request status to in_progress
       await fetch(`${API_URL}/api/service-requests/${requestDocId}`, {
         method: "PUT",
         headers: {

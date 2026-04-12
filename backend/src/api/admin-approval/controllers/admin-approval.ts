@@ -262,7 +262,6 @@ export default {
       limit: 20,
     });
 
-    // Reviews GIVEN by this user as a customer
     const reviews = await safeFind("api::review.review", {
       filters: { customer: { id } },
       populate: { provider_profile: true },
@@ -270,7 +269,6 @@ export default {
       limit: 20,
     });
 
-    // Reviews RECEIVED by this user as a provider
     const providerProfiles = await safeFind("api::provider-profile.provider-profile", {
       filters: { user: { id } },
     });

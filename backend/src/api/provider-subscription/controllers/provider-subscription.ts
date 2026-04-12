@@ -6,7 +6,7 @@ export default factories.createCoreController('api::provider-subscription.provid
   async initiate(ctx) {
     const user = ctx.state.user;
     const { plan = 'monthly' } = ctx.request.body;
-    const amount = plan === 'yearly' ? 2000 : 299; // Rs. 299/month or Rs. 2000/year
+    const amount = plan === 'yearly' ? 2000 : 299; 
 
     try {
       const response = await axios.post(

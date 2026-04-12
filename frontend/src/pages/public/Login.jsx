@@ -30,7 +30,7 @@ export default function Login() {
       const { jwt } = res.data;
 
       const userRes = await axios.get(
-        `${API_URL}/users/me?populate[0]=role&populate[1]=provider_profile`,
+        `${API_URL}/users/me?populate[0]=role&populate[1]=provider_profile&populate[2]=profilePicture`,
         { headers: { Authorization: `Bearer ${jwt}` } },
       );
 

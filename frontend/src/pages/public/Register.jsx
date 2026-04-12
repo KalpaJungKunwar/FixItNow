@@ -37,7 +37,6 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!idDocument) {
       setError("Please upload a citizenship or passport document.");
       return;
@@ -46,22 +45,16 @@ export default function Register() {
       setError("Providers must upload a professional certificate.");
       return;
     }
-
     setLoading(true);
     setError("");
-
     try {
-      // 1. Register user (jwt will be null — user is blocked until admin approves)
       const res = await axios.post(`${API_URL}/auth/local/register`, {
         username: formData.username,
         email: formData.email,
         password: formData.password,
         roleType: formData.role,
       });
-
       const { user } = res.data;
-
-      // 2. If provider, create ProviderProfile via public endpoint
       if (formData.role === "provider") {
         await axios.post(`${API_URL}/provider-profiles/public-create`, {
           userId: user.id,
@@ -71,16 +64,10 @@ export default function Register() {
           avg_hourly_rate: Number(formData.avg_hourly_rate),
         });
       }
-
-      // 3. Upload ID document via public endpoint (no JWT needed)
       await uploadDocument(idDocument, idDocType, user.id);
-
-      // 4. Upload certificate if provider
       if (formData.role === "provider" && certificate) {
         await uploadDocument(certificate, "certificate", user.id);
       }
-
-      // 5. Redirect to pending approval page
       navigate("/pending-approval");
     } catch (err) {
       setError(
@@ -94,7 +81,6 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        {/* Header */}
         <h2 className="text-3xl font-bold text-gray-800 mb-1">
           Create Account
         </h2>
@@ -102,7 +88,6 @@ export default function Register() {
           Join thousands of users getting things fixed today.
         </p>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg mb-4 border border-red-200">
             {error}
@@ -110,7 +95,6 @@ export default function Register() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Role */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               I am a...
@@ -128,7 +112,6 @@ export default function Register() {
             </select>
           </div>
 
-          {/* Full Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Full Name
@@ -144,7 +127,6 @@ export default function Register() {
             />
           </div>
 
-          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
@@ -160,7 +142,6 @@ export default function Register() {
             />
           </div>
 
-          {/* Password */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
@@ -177,7 +158,6 @@ export default function Register() {
             />
           </div>
 
-          {/* Provider-only Fields */}
           {formData.role === "provider" && (
             <div className="border-t border-gray-100 pt-4">
               <p className="text-sm font-semibold text-blue-600 mb-3">
@@ -256,7 +236,6 @@ export default function Register() {
             </div>
           )}
 
-          {/* Document Upload Section */}
           <div className="border-t border-gray-100 pt-4">
             <p className="text-sm font-semibold text-blue-600 mb-3">
               Identity Verification
@@ -266,7 +245,6 @@ export default function Register() {
               account is activated.
             </p>
 
-            {/* ID Document Type */}
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ID Document Type
@@ -281,7 +259,6 @@ export default function Register() {
               </select>
             </div>
 
-            {/* ID File Upload */}
             <div className="mb-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Upload{" "}
@@ -306,7 +283,6 @@ export default function Register() {
               </p>
             </div>
 
-            {/* Certificate (provider only) */}
             {formData.role === "provider" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -331,7 +307,6 @@ export default function Register() {
             )}
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -366,7 +341,6 @@ export default function Register() {
           </button>
         </form>
 
-        {/* Login link */}
         <p className="text-center text-sm text-gray-500 mt-4">
           Already have an account?{" "}
           <Link

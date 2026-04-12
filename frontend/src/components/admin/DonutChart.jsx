@@ -33,7 +33,6 @@ export default function DonutChart({ title, data, colors }) {
       <div style={{ color: "#a0a0b8", fontSize: 14, marginBottom: 16 }}>{title}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
         <svg width={160} height={160} viewBox="0 0 160 160" style={{ flexShrink: 0 }}>
-          {/* Background circle */}
           <circle cx={cx} cy={cy} r={radius}
             fill="none" stroke="#2a2a3e" strokeWidth={strokeW} />
           {segments.map((s, i) => (

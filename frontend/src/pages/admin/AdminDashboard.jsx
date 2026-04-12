@@ -8,12 +8,43 @@ import RecentTable from "../../components/admin/RecentTable";
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:1337/api";
 const MEDIA_URL = BASE_URL.replace("/api", "");
 
+const CATEGORIES = [
+  "plumbing",
+  "electrical",
+  "carpentry",
+  "cleaning",
+  "technical",
+  "painting",
+  "other",
+];
+const SERVICE_STATUSES = [
+  "pending",
+  "in_progress",
+  "awaiting_confirmation",
+  "completed",
+  "cancelled",
+];
+const BID_STATUSES = ["pending", "accepted", "rejected"];
+const SPECIALTIES = [
+  "plumbing",
+  "electrical",
+  "carpentry",
+  "cleaning",
+  "technical",
+  "painting",
+  "other",
+];
+const SUB_STATUSES = ["active", "expired", "cancelled"];
+const SUB_PLANS = ["monthly", "yearly"];
+
 const STATUS_COLORS = {
   open: "bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20",
   in_progress:
     "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
   completed:
     "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  awaiting_confirmation:
+    "bg-purple-500/10 text-purple-400 ring-1 ring-inset ring-purple-500/20",
   cancelled: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   pending: "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
   accepted:
@@ -24,6 +55,7 @@ const STATUS_COLORS = {
   blocked: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   active:
     "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  expired: "bg-zinc-500/10 text-zinc-400 ring-1 ring-inset ring-zinc-500/20",
   failed: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   monthly: "bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20",
   yearly:
@@ -39,7 +71,7 @@ const badge = (label) => (
   <span
     className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold tracking-wide ${STATUS_COLORS[label] || "bg-zinc-500/10 text-zinc-400 ring-1 ring-inset ring-zinc-500/20"}`}
   >
-    {label?.replace("_", " ")}
+    {label?.replace(/_/g, " ")}
   </span>
 );
 
@@ -51,6 +83,1457 @@ function fmt(date) {
         year: "numeric",
       })
     : "—";
+}
+
+function ConfirmModal({ message, onConfirm, onCancel, loading }) {
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-5">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+        <p className="text-white text-sm font-medium mb-6">{message}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg py-2 text-xs font-semibold transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-lg py-2 text-xs font-semibold transition-colors"
+          >
+            {loading ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditModal({
+  title,
+  fields,
+  values,
+  onChange,
+  onSave,
+  onClose,
+  saving,
+  error,
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-5">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <h3 className="text-white font-semibold text-sm">{title}</h3>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 text-zinc-400 flex items-center justify-center text-sm transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+          {fields.map((f) => (
+            <div key={f.key}>
+              <label className="block text-zinc-400 text-xs font-semibold uppercase tracking-widest mb-1.5">
+                {f.label}
+              </label>
+              {f.type === "select" ? (
+                <select
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 text-sm outline-none focus:border-zinc-600 transition-colors"
+                >
+                  {f.options.map((o) => (
+                    <option key={o} value={o}>
+                      {o.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </select>
+              ) : f.type === "textarea" ? (
+                <textarea
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  rows={3}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 text-sm outline-none focus:border-zinc-600 transition-colors resize-none"
+                />
+              ) : (
+                <input
+                  type={f.type || "text"}
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => onChange(f.key, e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 text-sm outline-none focus:border-zinc-600 transition-colors"
+                />
+              )}
+            </div>
+          ))}
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-red-400 text-xs">
+              {error}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-3 px-6 py-4 border-t border-zinc-800">
+          <button
+            onClick={onClose}
+            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg py-2 text-xs font-semibold transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            disabled={saving}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg py-2 text-xs font-semibold transition-colors"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SearchBar({ value, onChange, placeholder }) {
+  return (
+    <div className="relative">
+      <svg
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z"
+        />
+      </svg>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || "Search..."}
+        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-9 pr-4 py-2 text-zinc-200 text-xs outline-none focus:border-zinc-600 transition-colors placeholder-zinc-600"
+      />
+    </div>
+  );
+}
+
+function Pagination({ page, total, perPage, onChange }) {
+  const totalPages = Math.ceil(total / perPage);
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 mt-4">
+      <button
+        onClick={() => onChange(page - 1)}
+        disabled={page === 1}
+        className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-zinc-300 text-xs font-bold transition-colors"
+      >
+        ‹
+      </button>
+      <span className="text-zinc-500 text-xs">
+        {page} / {totalPages}
+      </span>
+      <button
+        onClick={() => onChange(page + 1)}
+        disabled={page === totalPages}
+        className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 disabled:opacity-30 text-zinc-300 text-xs font-bold transition-colors"
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
+function ServiceRequestsTab({ token }) {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editItem, setEditItem] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const PER_PAGE = 8;
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/service-requests?populate[customer]=true&populate[bids][fields][0]=id&sort=createdAt:desc&pagination[limit]=200`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      setRequests(data.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (req) => {
+    const a = req.attributes ?? req;
+    setEditValues({
+      title: a.title || "",
+      description: a.description || "",
+      category: a.category || "",
+      location: a.location || "",
+      suggested_budget: a.suggested_budget || "",
+      service_status: a.service_status || "pending",
+    });
+    setEditItem(req);
+    setSaveError("");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const id = editItem.documentId ?? editItem.id;
+      const res = await fetch(`${BASE_URL}/service-requests/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          data: {
+            ...editValues,
+            suggested_budget: Number(editValues.suggested_budget),
+          },
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Failed");
+      }
+      await fetchRequests();
+      setEditItem(null);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const id = deleteItem.documentId ?? deleteItem.id;
+      await fetch(`${BASE_URL}/service-requests/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchRequests();
+      setDeleteItem(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const filtered = requests.filter((r) => {
+    const a = r.attributes ?? r;
+    const matchSearch =
+      !search ||
+      a.title?.toLowerCase().includes(search.toLowerCase()) ||
+      a.location?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus =
+      filterStatus === "all" || a.service_status === filterStatus;
+    const matchCat = filterCategory === "all" || a.category === filterCategory;
+    return matchSearch && matchStatus && matchCat;
+  });
+
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {editItem && (
+        <EditModal
+          title="Edit Service Request"
+          fields={[
+            { key: "title", label: "Title" },
+            { key: "description", label: "Description", type: "textarea" },
+            {
+              key: "category",
+              label: "Category",
+              type: "select",
+              options: CATEGORIES,
+            },
+            { key: "location", label: "Location" },
+            { key: "suggested_budget", label: "Budget (Rs.)", type: "number" },
+            {
+              key: "service_status",
+              label: "Status",
+              type: "select",
+              options: SERVICE_STATUSES,
+            },
+          ]}
+          values={editValues}
+          onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onClose={() => setEditItem(null)}
+          saving={saving}
+          error={saveError}
+        />
+      )}
+      {deleteItem && (
+        <ConfirmModal
+          message={`Delete "${(deleteItem.attributes ?? deleteItem).title}"? This cannot be undone.`}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+          loading={deleting}
+        />
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4">
+        <div className="text-white font-semibold text-sm">Service Requests</div>
+        <div className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
+          {filtered.length} total
+        </div>
+        <div className="flex-1 min-w-48">
+          <SearchBar
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by title or location..."
+          />
+        </div>
+        <select
+          value={filterCategory}
+          onChange={(e) => {
+            setFilterCategory(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Categories</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => {
+            setFilterStatus(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Statuses</option>
+          {SERVICE_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s.replace(/_/g, " ")}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={fetchRequests}
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-xs transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+        </div>
+      ) : paginated.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500 text-sm">
+          No service requests found.
+        </div>
+      ) : (
+        paginated.map((req) => {
+          const a = req.attributes ?? req;
+          return (
+            <div
+              key={req.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:border-zinc-700 transition-colors"
+            >
+              <div className="flex-1 min-w-56">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-white font-semibold text-sm">
+                    {a.title || "—"}
+                  </span>
+                  {badge(a.category)}
+                  {badge(a.service_status)}
+                </div>
+                <div className="text-zinc-500 text-xs mb-2 line-clamp-2">
+                  {a.description || "—"}
+                </div>
+                <div className="flex gap-4 flex-wrap text-xs text-zinc-500">
+                  <span>📍 {a.location || "—"}</span>
+                  {a.suggested_budget && (
+                    <span>
+                      Rs. {Number(a.suggested_budget).toLocaleString()}
+                    </span>
+                  )}
+                  <span>
+                    👤{" "}
+                    {a.customer?.data?.attributes?.username ??
+                      a.customer?.username ??
+                      "—"}
+                  </span>
+                  <span>{fmt(a.createdAt)}</span>
+                  <span>
+                    {a.bids?.data?.length ?? a.bids?.length ?? 0} bids
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEdit(req)}
+                  className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setDeleteItem(req)}
+                  className="bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+      <Pagination
+        page={page}
+        total={filtered.length}
+        perPage={PER_PAGE}
+        onChange={setPage}
+      />
+    </div>
+  );
+}
+
+function ProviderProfilesTab({ token }) {
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterSpecialty, setFilterSpecialty] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editItem, setEditItem] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const PER_PAGE = 8;
+
+  useEffect(() => {
+    fetchProfiles();
+  }, []);
+
+  const fetchProfiles = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/provider-profiles?populate=*&sort=createdAt:desc&pagination[limit]=200`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      console.log("First profile sample:", data.data?.[0]);
+      setProfiles(data.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (profile) => {
+    const a = profile.attributes ?? profile;
+    setEditValues({
+      specialty: a.specialty || "",
+      location: a.location || "",
+      experience: a.experience || "",
+      avg_hourly_rate: a.avg_hourly_rate || "",
+      bio: a.bio || "",
+      rating: a.rating || "",
+      verified: a.verified ? "true" : "false",
+    });
+    setEditItem(profile);
+    setSaveError("");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const id = editItem.documentId ?? editItem.id;
+      const res = await fetch(`${BASE_URL}/provider-profiles/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          data: {
+            specialty: editValues.specialty,
+            location: editValues.location,
+            experience: Number(editValues.experience),
+            avg_hourly_rate: Number(editValues.avg_hourly_rate),
+            bio: editValues.bio,
+            rating: Number(editValues.rating),
+            verified: editValues.verified === "true",
+          },
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Failed");
+      }
+      await fetchProfiles();
+      setEditItem(null);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = profiles.filter((p) => {
+    const a = p.attributes ?? p;
+    const userObj =
+      a.user?.data?.attributes ?? a.user?.attributes ?? a.user ?? {};
+    const username = userObj.username ?? "";
+    const matchSearch =
+      !search ||
+      username.toLowerCase().includes(search.toLowerCase()) ||
+      a.location?.toLowerCase().includes(search.toLowerCase());
+    const matchSpec =
+      filterSpecialty === "all" || a.specialty === filterSpecialty;
+    return matchSearch && matchSpec;
+  });
+
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {editItem && (
+        <EditModal
+          title="Edit Provider Profile"
+          fields={[
+            {
+              key: "specialty",
+              label: "Specialty",
+              type: "select",
+              options: SPECIALTIES,
+            },
+            { key: "location", label: "Location" },
+            { key: "experience", label: "Years of Experience", type: "number" },
+            {
+              key: "avg_hourly_rate",
+              label: "Avg Hourly Rate (Rs.)",
+              type: "number",
+            },
+            { key: "bio", label: "Bio", type: "textarea" },
+            { key: "rating", label: "Rating (0–5)", type: "number" },
+            {
+              key: "verified",
+              label: "Verified",
+              type: "select",
+              options: ["true", "false"],
+            },
+          ]}
+          values={editValues}
+          onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onClose={() => setEditItem(null)}
+          saving={saving}
+          error={saveError}
+        />
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4">
+        <div className="text-white font-semibold text-sm">
+          Provider Profiles
+        </div>
+        <div className="bg-violet-500/10 text-violet-400 ring-1 ring-inset ring-violet-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
+          {filtered.length} providers
+        </div>
+        <div className="flex-1 min-w-48">
+          <SearchBar
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by username or location..."
+          />
+        </div>
+        <select
+          value={filterSpecialty}
+          onChange={(e) => {
+            setFilterSpecialty(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Specialties</option>
+          {SPECIALTIES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={fetchProfiles}
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-xs transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+        </div>
+      ) : paginated.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500 text-sm">
+          No provider profiles found.
+        </div>
+      ) : (
+        paginated.map((profile) => {
+          const a = profile.attributes ?? profile;
+          const userObj =
+            a.user?.data?.attributes ??
+            a.user?.attributes ?? 
+            a.user ??
+            {};
+          const username = userObj.username ?? "—";
+          const email = userObj.email ?? "—";
+          return (
+            <div
+              key={profile.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:border-zinc-700 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-full bg-violet-600 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                {username[0]?.toUpperCase() || "P"}
+              </div>
+              <div className="flex-1 min-w-56">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-white font-semibold text-sm">
+                    {username}
+                  </span>
+                  <span className="text-zinc-500 text-xs">{email}</span>
+                  {badge(a.specialty)}
+                  {a.verified && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
+                      ✓ Verified
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-4 flex-wrap text-xs text-zinc-500">
+                  <span>📍 {a.location || "—"}</span>
+                  <span>⭐ {a.rating ? Number(a.rating).toFixed(1) : "—"}</span>
+                  <span>{a.experience || "—"} yrs exp</span>
+                  <span>Rs. {a.avg_hourly_rate || "—"}/hr</span>
+                </div>
+                {a.bio && (
+                  <p className="text-zinc-600 text-xs mt-1 line-clamp-1">
+                    {a.bio}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => openEdit(profile)}
+                className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
+              >
+                Edit
+              </button>
+            </div>
+          );
+        })
+      )}
+      <Pagination
+        page={page}
+        total={filtered.length}
+        perPage={PER_PAGE}
+        onChange={setPage}
+      />
+    </div>
+  );
+}
+
+function ReviewsTab({ token }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterRating, setFilterRating] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editItem, setEditItem] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const PER_PAGE = 8;
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const fetchReviews = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/reviews?populate[customer]=true&populate[provider_profile][populate][user]=true&populate[service_request][fields][0]=title&sort=createdAt:desc&pagination[limit]=200`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      setReviews(data.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (review) => {
+    const a = review.attributes ?? review;
+    setEditValues({ rating: a.rating || "", comment: a.comment || "" });
+    setEditItem(review);
+    setSaveError("");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const id = editItem.documentId ?? editItem.id;
+      const res = await fetch(`${BASE_URL}/reviews/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          data: {
+            rating: Number(editValues.rating),
+            comment: editValues.comment,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Failed");
+      }
+      await fetchReviews();
+      setEditItem(null);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const id = deleteItem.documentId ?? deleteItem.id;
+      await fetch(`${BASE_URL}/reviews/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchReviews();
+      setDeleteItem(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const filtered = reviews.filter((r) => {
+    const a = r.attributes ?? r;
+    const customer =
+      a.customer?.data?.attributes?.username ?? a.customer?.username ?? "";
+    const comment = a.comment ?? "";
+    const matchSearch =
+      !search ||
+      customer.toLowerCase().includes(search.toLowerCase()) ||
+      comment.toLowerCase().includes(search.toLowerCase());
+    const matchRating =
+      filterRating === "all" || Math.round(a.rating) === Number(filterRating);
+    return matchSearch && matchRating;
+  });
+
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {editItem && (
+        <EditModal
+          title="Edit Review"
+          fields={[
+            { key: "rating", label: "Rating (1–5)", type: "number" },
+            { key: "comment", label: "Comment", type: "textarea" },
+          ]}
+          values={editValues}
+          onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onClose={() => setEditItem(null)}
+          saving={saving}
+          error={saveError}
+        />
+      )}
+      {deleteItem && (
+        <ConfirmModal
+          message="Delete this review? This cannot be undone."
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+          loading={deleting}
+        />
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4">
+        <div className="text-white font-semibold text-sm">Reviews</div>
+        <div className="bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
+          {filtered.length} reviews
+        </div>
+        <div className="flex-1 min-w-48">
+          <SearchBar
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by customer or comment..."
+          />
+        </div>
+        <select
+          value={filterRating}
+          onChange={(e) => {
+            setFilterRating(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Ratings</option>
+          {[5, 4, 3, 2, 1].map((r) => (
+            <option key={r} value={r}>
+              {"★".repeat(r)} ({r})
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={fetchReviews}
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-xs transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+        </div>
+      ) : paginated.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500 text-sm">
+          No reviews found.
+        </div>
+      ) : (
+        paginated.map((review) => {
+          const a = review.attributes ?? review;
+          const customer =
+            a.customer?.data?.attributes?.username ??
+            a.customer?.username ??
+            "—";
+          const providerUser =
+            a.provider_profile?.data?.attributes?.user?.data?.attributes
+              ?.username ??
+            a.provider_profile?.user?.username ??
+            "—";
+          const srTitle =
+            a.service_request?.data?.attributes?.title ??
+            a.service_request?.title ??
+            "—";
+          return (
+            <div
+              key={review.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:border-zinc-700 transition-colors"
+            >
+              <div className="flex-1 min-w-56">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-amber-400 font-semibold text-sm">
+                    {"★".repeat(Math.round(a.rating || 0))}
+                  </span>
+                  <span className="text-zinc-500 text-xs font-mono">
+                    ({a.rating}/5)
+                  </span>
+                  <span className="text-zinc-500 text-xs">by {customer}</span>
+                  <span className="text-zinc-600 text-xs">
+                    → {providerUser}
+                  </span>
+                </div>
+                {a.comment && (
+                  <p className="text-zinc-300 text-sm mb-2 line-clamp-2">
+                    {a.comment}
+                  </p>
+                )}
+                <div className="flex gap-4 flex-wrap text-xs text-zinc-600">
+                  <span>Job: {srTitle}</span>
+                  <span>{fmt(a.createdAt)}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEdit(review)}
+                  className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setDeleteItem(review)}
+                  className="bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+      <Pagination
+        page={page}
+        total={filtered.length}
+        perPage={PER_PAGE}
+        onChange={setPage}
+      />
+    </div>
+  );
+}
+
+function BidsManageTab({ token }) {
+  const [bids, setBids] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editItem, setEditItem] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const PER_PAGE = 8;
+
+  useEffect(() => {
+    fetchBids();
+  }, []);
+
+  const fetchBids = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/bids?populate[provider]=true&populate[service_request][fields][0]=title&sort=createdAt:desc&pagination[limit]=200`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      setBids(data.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (bid) => {
+    const a = bid.attributes ?? bid;
+    setEditValues({
+      amount: a.amount || "",
+      message: a.message || "",
+      availability: a.availability || "",
+      bid_status: a.bid_status || "pending",
+    });
+    setEditItem(bid);
+    setSaveError("");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const id = editItem.documentId ?? editItem.id;
+      const res = await fetch(`${BASE_URL}/bids/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          data: { ...editValues, amount: Number(editValues.amount) },
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Failed");
+      }
+      await fetchBids();
+      setEditItem(null);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const id = deleteItem.documentId ?? deleteItem.id;
+      await fetch(`${BASE_URL}/bids/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchBids();
+      setDeleteItem(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const filtered = bids.filter((b) => {
+    const a = b.attributes ?? b;
+    const provider =
+      a.provider?.data?.attributes?.username ?? a.provider?.username ?? "";
+    const srTitle =
+      a.service_request?.data?.attributes?.title ??
+      a.service_request?.title ??
+      "";
+    const matchSearch =
+      !search ||
+      provider.toLowerCase().includes(search.toLowerCase()) ||
+      srTitle.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === "all" || a.bid_status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {editItem && (
+        <EditModal
+          title="Edit Bid"
+          fields={[
+            { key: "amount", label: "Amount (Rs.)", type: "number" },
+            { key: "message", label: "Message", type: "textarea" },
+            { key: "availability", label: "Availability" },
+            {
+              key: "bid_status",
+              label: "Status",
+              type: "select",
+              options: BID_STATUSES,
+            },
+          ]}
+          values={editValues}
+          onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onClose={() => setEditItem(null)}
+          saving={saving}
+          error={saveError}
+        />
+      )}
+      {deleteItem && (
+        <ConfirmModal
+          message="Delete this bid? This cannot be undone."
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+          loading={deleting}
+        />
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4">
+        <div className="text-white font-semibold text-sm">Bids</div>
+        <div className="bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
+          {filtered.length} bids
+        </div>
+        <div className="flex-1 min-w-48">
+          <SearchBar
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by provider or request..."
+          />
+        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => {
+            setFilterStatus(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Statuses</option>
+          {BID_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={fetchBids}
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-xs transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+        </div>
+      ) : paginated.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500 text-sm">
+          No bids found.
+        </div>
+      ) : (
+        paginated.map((bid) => {
+          const a = bid.attributes ?? bid;
+          const provider =
+            a.provider?.data?.attributes?.username ??
+            a.provider?.username ??
+            "—";
+          const srTitle =
+            a.service_request?.data?.attributes?.title ??
+            a.service_request?.title ??
+            "—";
+          return (
+            <div
+              key={bid.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:border-zinc-700 transition-colors"
+            >
+              <div className="flex-1 min-w-56">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-white font-semibold text-sm">
+                    Rs. {Number(a.amount || 0).toLocaleString()}
+                  </span>
+                  {badge(a.bid_status)}
+                  <span className="text-zinc-500 text-xs">by {provider}</span>
+                </div>
+                <div className="text-zinc-500 text-xs mb-1">Job: {srTitle}</div>
+                {a.message && (
+                  <p className="text-zinc-600 text-xs line-clamp-1">
+                    {a.message}
+                  </p>
+                )}
+                <div className="flex gap-4 flex-wrap text-xs text-zinc-600 mt-1">
+                  <span>Available: {a.availability || "—"}</span>
+                  <span>{fmt(a.createdAt)}</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEdit(bid)}
+                  className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setDeleteItem(bid)}
+                  className="bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+      <Pagination
+        page={page}
+        total={filtered.length}
+        perPage={PER_PAGE}
+        onChange={setPage}
+      />
+    </div>
+  );
+}
+
+function SubscriptionsTab({ token }) {
+  const [subs, setSubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterPlan, setFilterPlan] = useState("all");
+  const [page, setPage] = useState(1);
+  const [editItem, setEditItem] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [deleteItem, setDeleteItem] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const PER_PAGE = 8;
+
+  useEffect(() => {
+    fetchSubs();
+  }, []);
+
+  const fetchSubs = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${BASE_URL}/provider-subscriptions?populate[provider]=true&sort=createdAt:desc&pagination[limit]=200`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      setSubs(data.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEdit = (sub) => {
+    const a = sub.attributes ?? sub;
+    setEditValues({
+      subscriptionStatus: a.subscriptionStatus || "active",
+      plan: a.plan || "monthly",
+      amount: a.amount || "",
+      expires_at: a.expires_at ? a.expires_at.slice(0, 10) : "",
+    });
+    setEditItem(sub);
+    setSaveError("");
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError("");
+    try {
+      const id = editItem.documentId ?? editItem.id;
+      const res = await fetch(`${BASE_URL}/provider-subscriptions/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          data: { ...editValues, amount: Number(editValues.amount) },
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Failed");
+      }
+      await fetchSubs();
+      setEditItem(null);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      const id = deleteItem.documentId ?? deleteItem.id;
+      await fetch(`${BASE_URL}/provider-subscriptions/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await fetchSubs();
+      setDeleteItem(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const filtered = subs.filter((s) => {
+    const a = s.attributes ?? s;
+    const provider =
+      a.provider?.data?.attributes?.username ?? a.provider?.username ?? "";
+    const matchSearch =
+      !search || provider.toLowerCase().includes(search.toLowerCase());
+    const matchStatus =
+      filterStatus === "all" || a.subscriptionStatus === filterStatus;
+    const matchPlan = filterPlan === "all" || a.plan === filterPlan;
+    return matchSearch && matchStatus && matchPlan;
+  });
+
+  const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  return (
+    <div className="flex flex-col gap-4">
+      {editItem && (
+        <EditModal
+          title="Edit Subscription"
+          fields={[
+            {
+              key: "subscriptionStatus",
+              label: "Status",
+              type: "select",
+              options: SUB_STATUSES,
+            },
+            { key: "plan", label: "Plan", type: "select", options: SUB_PLANS },
+            { key: "amount", label: "Amount (Rs.)", type: "number" },
+            { key: "expires_at", label: "Expires At", type: "date" },
+          ]}
+          values={editValues}
+          onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
+          onSave={handleSave}
+          onClose={() => setEditItem(null)}
+          saving={saving}
+          error={saveError}
+        />
+      )}
+      {deleteItem && (
+        <ConfirmModal
+          message="Delete this subscription? The provider will lose access."
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteItem(null)}
+          loading={deleting}
+        />
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4">
+        <div className="text-white font-semibold text-sm">Subscriptions</div>
+        <div className="bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20 rounded-full px-3 py-0.5 text-xs font-semibold">
+          {filtered.length} subscriptions
+        </div>
+        <div className="flex-1 min-w-48">
+          <SearchBar
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by provider..."
+          />
+        </div>
+        <select
+          value={filterPlan}
+          onChange={(e) => {
+            setFilterPlan(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Plans</option>
+          {SUB_PLANS.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={(e) => {
+            setFilterStatus(e.target.value);
+            setPage(1);
+          }}
+          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-300 text-xs outline-none"
+        >
+          <option value="all">All Statuses</option>
+          {SUB_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={fetchSubs}
+          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg px-3 py-2 text-xs transition-colors"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-7 h-7 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin" />
+        </div>
+      ) : paginated.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center text-zinc-500 text-sm">
+          No subscriptions found.
+        </div>
+      ) : (
+        paginated.map((sub) => {
+          const a = sub.attributes ?? sub;
+          const provider =
+            a.provider?.data?.attributes?.username ??
+            a.provider?.username ??
+            "—";
+          const isExpired = a.expires_at && new Date(a.expires_at) < new Date();
+          return (
+            <div
+              key={sub.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:border-zinc-700 transition-colors"
+            >
+              <div className="flex-1 min-w-56">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-white font-semibold text-sm">
+                    {provider}
+                  </span>
+                  {badge(a.plan)}
+                  {badge(a.subscriptionStatus)}
+                  {isExpired && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20">
+                      Expired
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-4 flex-wrap text-xs text-zinc-500">
+                  <span>Rs. {Number(a.amount || 0).toLocaleString()}</span>
+                  <span>Expires: {fmt(a.expires_at)}</span>
+                  <span>Started: {fmt(a.starts_at)}</span>
+                  {a.transaction_id && (
+                    <span className="font-mono text-zinc-600">
+                      TXN: {a.transaction_id}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEdit(sub)}
+                  className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setDeleteItem(sub)}
+                  className="bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-500/20 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          );
+        })
+      )}
+      <Pagination
+        page={page}
+        total={filtered.length}
+        perPage={PER_PAGE}
+        onChange={setPage}
+      />
+    </div>
+  );
 }
 
 function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
@@ -217,13 +1700,8 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                           )}
                           {isPdf && (
                             <div className="bg-zinc-800 rounded-lg p-3 flex items-center gap-3 mb-3">
-                              <div>
-                                <div className="text-zinc-200 text-sm">
-                                  PDF Document
-                                </div>
-                                <div className="text-zinc-500 text-xs">
-                                  Click below to open
-                                </div>
+                              <div className="text-zinc-200 text-sm">
+                                PDF Document
                               </div>
                             </div>
                           )}
@@ -654,7 +2132,12 @@ export default function AdminDashboard() {
     { id: "activity", label: "Recent Activity" },
     { id: "approvals", label: "Pending Approvals" },
     { id: "users", label: "All Users" },
-    { id: "payments", label: "Payments" }, // ← NEW
+    { id: "payments", label: "Payments" },
+    { id: "crud_requests", label: "Manage Requests" },
+    { id: "crud_providers", label: "Manage Providers" },
+    { id: "crud_reviews", label: "Manage Reviews" },
+    { id: "crud_bids", label: "Manage Bids" },
+    { id: "crud_subscriptions", label: "Manage Subscriptions" },
   ];
 
   return (
@@ -702,8 +2185,12 @@ export default function AdminDashboard() {
               <div className="text-indigo-400 text-[10px]">Administrator</div>
             </div>
           </div>
-          <nav className="flex flex-col gap-0.5">
-            {tabs.map((tab) => (
+
+          <div className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest px-1 mb-1">
+            Analytics
+          </div>
+          <nav className="flex flex-col gap-0.5 mb-4">
+            {tabs.slice(0, 7).map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
@@ -718,12 +2205,28 @@ export default function AdminDashboard() {
               </button>
             ))}
           </nav>
+
+          <div className="text-zinc-600 text-[10px] font-bold uppercase tracking-widest px-1 mb-1">
+            Manage Data
+          </div>
+          <nav className="flex flex-col gap-0.5 mb-4">
+            {tabs.slice(7).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${activeTab === tab.id ? "bg-indigo-500/10 text-indigo-400" : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50"}`}
+              >
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </nav>
+
           <button
             onClick={() => {
               logout();
               navigate("/login");
             }}
-            className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors mt-4 cursor-pointer"
+            className="flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors mt-2 cursor-pointer"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -764,9 +2267,18 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        {activeTab === "crud_requests" && <ServiceRequestsTab token={token} />}
+        {activeTab === "crud_providers" && (
+          <ProviderProfilesTab token={token} />
+        )}
+        {activeTab === "crud_reviews" && <ReviewsTab token={token} />}
+        {activeTab === "crud_bids" && <BidsManageTab token={token} />}
+        {activeTab === "crud_subscriptions" && (
+          <SubscriptionsTab token={token} />
+        )}
+
         {activeTab === "overview" && (
           <div className="flex flex-col gap-6">
-            {/* Row 1 — Traffic stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Total Users"
@@ -796,8 +2308,6 @@ export default function AdminDashboard() {
                 color="#3b82f6"
               />
             </div>
-
-            {/* Row 2 — Quality + Revenue */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard
                 title="Reviews"
@@ -830,8 +2340,6 @@ export default function AdminDashboard() {
                 sub="Paid via service requests"
               />
             </div>
-
-            {/* Donut charts */}
             <div className="flex gap-5 flex-wrap">
               <DonutChart
                 title="Users by Role"
@@ -864,6 +2372,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
         {activeTab === "requests" && (
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1037,7 +2546,7 @@ export default function AdminDashboard() {
             {pendingLoading && (
               <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
                 <div className="w-8 h-8 border-2 border-zinc-700 border-t-indigo-500 rounded-full animate-spin mb-3" />
-                <span className="text-sm">Loading pending users...</span>
+                <span className="text-sm">Loading...</span>
               </div>
             )}
             {!pendingLoading && pendingUsers.length === 0 && (
@@ -1120,7 +2629,7 @@ export default function AdminDashboard() {
                         Rejection reason (optional)
                       </div>
                       <textarea
-                        placeholder="e.g. Documents are unclear or expired..."
+                        placeholder="e.g. Documents are unclear..."
                         value={rejectReasons[u.id] || ""}
                         onChange={(e) =>
                           setRejectReasons({
@@ -1259,7 +2768,6 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* ── NEW: Payments Tab ── */}
         {activeTab === "payments" && (
           <div className="flex flex-col gap-6">
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">

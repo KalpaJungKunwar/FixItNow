@@ -311,22 +311,16 @@ function avatarColor(str) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-// ─── Helper: extract photos array from a service request attrs object ─────────
 function extractPhotos(attrs) {
-  // Strapi v4 can return photos as:
-  //   attrs.photos.data = [{ id, attributes: { url, ... } }]
-  // or after populate as a flat array of objects with .url
   const raw = attrs?.photos;
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw; // already flat
+  if (Array.isArray(raw)) return raw;
   if (Array.isArray(raw?.data)) {
-    // v4 shape
     return raw.data.map((f) => ({ ...a(f), id: f.id }));
   }
   return [];
 }
 
-// ─── Photo Strip ──────────────────────────────────────────────────────────────
 function PhotoStrip({ photos, className = "" }) {
   const [lightbox, setLightbox] = useState(null);
   if (!photos || photos.length === 0) return null;
@@ -580,7 +574,8 @@ function Sidebar({ active, setActive, user, profile }) {
     { id: "requests", Icon: SearchIcon, label: "Find Requests" },
     { id: "bids", Icon: ClipboardIcon, label: "My Bids" },
     { id: "profile", Icon: UserIcon, label: "My Profile" },
-    { id: "reviews", Icon: StarIcon, label: "My Reviews" }, // ← add this
+    { id: "reviews", Icon: StarIcon, label: "My Reviews" }, 
+  
   ];
   return (
     <div className="w-56 min-h-screen bg-gray-900 flex flex-col flex-shrink-0 border-r border-white/5">
@@ -668,18 +663,13 @@ function EmptyState({ Icon, title, sub }) {
     </div>
   );
 }
-
-// ─── Request Card ─────────────────────────────────────────────────────────────
 function RequestCard({ request, myBids, onBid, compact }) {
   const attrs = a(request);
-  // At the top of RequestCard, after extracting customer:
   const customer = attrs.customer?.data
     ? a(attrs.customer.data)
     : (attrs.customer ?? {});
   const username = customer?.username || "Customer";
   const colorClass = avatarColor(username);
-
-  // Get profile picture URL
   const rawPic = Array.isArray(customer?.profilePicture)
     ? (customer.profilePicture[0] ?? null)
     : (customer?.profilePicture ?? null);
@@ -691,7 +681,6 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const specialty = SPECIALTIES.find((s) => s.value === attrs.category);
   const photos = extractPhotos(attrs);
   const [showPhotos, setShowPhotos] = useState(false);
-
   const alreadyBid = myBids.some((b) => {
     const sr = b?.service_request ?? b?.attributes?.service_request;
     const rid = sr?.data?.id ?? sr?.id ?? sr?.data?.attributes?.id;
@@ -705,7 +694,6 @@ function RequestCard({ request, myBids, onBid, compact }) {
         rDocId === (request.documentId ?? request.attributes?.documentId))
     );
   });
-
   const [bidAmount, setBidAmount] = useState(
     attrs.suggested_budget ? Math.round(attrs.suggested_budget * 0.92) : "",
   );
@@ -781,7 +769,6 @@ function RequestCard({ request, myBids, onBid, compact }) {
         />
       )}
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-md hover:border-gray-300 transition-all duration-200">
-        {/* ── Photo banner: full-width strip if photos exist ── */}
         {photos.length > 0 && (
           <>
             {showPhotos && (
@@ -1251,7 +1238,6 @@ function MyBidsTab({ providerId, payments }) {
     };
   }, []);
 
-  // ── fetch bids WITH photos populated on the service_request ──
   const fetchMyBids = async () => {
     try {
       const res = await fetch(
@@ -1829,7 +1815,6 @@ function ProfileTab({
     }
   };
 
-  // ── Save username + email ──
   const handleAccountSave = async () => {
     setAccountSaving(true);
     setAccountError("");
@@ -1865,7 +1850,6 @@ function ProfileTab({
     }
   };
 
-  // ── Save provider profile ──
   const handleSave = async () => {
     setLoading(true);
     setError("");
@@ -1927,7 +1911,6 @@ function ProfileTab({
         </h2>
       </div>
 
-      {/* ── Profile header banner ── */}
       <div className="bg-gray-900 rounded-2xl p-6 mb-5 flex items-center gap-5 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/[0.03] -translate-y-1/2 translate-x-1/2" />
 
@@ -2026,7 +2009,6 @@ function ProfileTab({
         manually.
       </div>
 
-      {/* ── Account Info (username + email) ── */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-5">
         <h3 className="text-sm font-bold text-gray-900 mb-5">
           Account Information
@@ -2075,7 +2057,6 @@ function ProfileTab({
         </button>
       </div>
 
-      {/* ── Provider profile form ── */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-5">
           Provider Information
@@ -2214,7 +2195,6 @@ function ReviewsTab({ providerId }) {
 
   const fetchReviews = async () => {
     try {
-      // First get the provider's profile documentId
       const profileRes = await fetch(
         `${API_URL}/api/users/${providerId}?populate[provider_profile]=true`,
         { headers: { Authorization: `Bearer ${getToken()}` } },
@@ -2228,7 +2208,6 @@ function ReviewsTab({ providerId }) {
         return;
       }
 
-      // Now fetch reviews using the correct relation field
       const res = await fetch(
         `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer][populate]=profilePicture&sort=createdAt:desc&pagination[limit]=100`,
         { headers: { Authorization: `Bearer ${getToken()}` } },
@@ -2286,9 +2265,7 @@ function ReviewsTab({ providerId }) {
         />
       ) : (
         <>
-          {/* ── Summary card ── */}
           <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 flex gap-8 flex-wrap">
-            {/* Big average */}
             <div className="flex flex-col items-center justify-center min-w-[100px]">
               <p className="text-5xl font-extrabold text-gray-900 tracking-tight">
                 {stats.avg.toFixed(1)}
@@ -2307,7 +2284,6 @@ function ReviewsTab({ providerId }) {
               </p>
             </div>
 
-            {/* Breakdown bars */}
             <div className="flex-1 min-w-[200px] space-y-2 justify-center flex flex-col">
               {[5, 4, 3, 2, 1].map((star) => {
                 const count = stats.breakdown[star] ?? 0;
@@ -2335,7 +2311,6 @@ function ReviewsTab({ providerId }) {
             </div>
           </div>
 
-          {/* ── Review list ── */}
           <div className="space-y-3">
             {reviews.map((review) => {
               const customer = review.customer ?? {};
@@ -2357,7 +2332,6 @@ function ReviewsTab({ providerId }) {
                   className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all"
                 >
                   <div className="flex items-start gap-3">
-                    {/* Customer avatar */}
                     {picUrl ? (
                       <img
                         src={picUrl}
@@ -2382,7 +2356,6 @@ function ReviewsTab({ providerId }) {
                         </span>
                       </div>
 
-                      {/* Stars */}
                       <div className="flex gap-0.5 mt-1 mb-2">
                         {[1, 2, 3, 4, 5].map((s) => (
                           <StarIcon
@@ -2395,8 +2368,6 @@ function ReviewsTab({ providerId }) {
                           {rating}/5
                         </span>
                       </div>
-
-                      {/* Comment */}
                       {review.comment ? (
                         <p className="text-sm text-gray-600 leading-relaxed">
                           {review.comment}
@@ -2407,7 +2378,6 @@ function ReviewsTab({ providerId }) {
                         </p>
                       )}
 
-                      {/* Job reference if available */}
                       {review.service_request?.title && (
                         <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
                           <ClipboardIcon className="w-3 h-3" />
@@ -2505,7 +2475,6 @@ export default function ProviderDashboard() {
       );
       const data = await res.json();
 
-      // profilePicture comes back as an array from Strapi
       const profilePicture = Array.isArray(data.profilePicture)
         ? (data.profilePicture[0] ?? null)
         : (data.profilePicture ?? null);
@@ -2665,7 +2634,7 @@ export default function ProviderDashboard() {
             user={user}
             onProfileSaved={(updated) => setProfile(updated)}
             onPicSaved={() => fetchProfile(user)}
-            onUserSaved={handleUserSaved} // ← add this
+            onUserSaved={handleUserSaved} 
           />
         )}
         {activeTab === "reviews" && <ReviewsTab providerId={user?.id} />}

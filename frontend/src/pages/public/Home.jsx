@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext"; // adjust path if needed
+import { useAuth } from "../../context/AuthContext";
 
 const WrenchIcon = ({ className }) => (
   <svg
@@ -284,7 +284,6 @@ function LiveMarketplace({ isLoggedIn }) {
         const data = await fetchLiveRequests();
         if (!cancelled && data.length > 0) setRequests(data);
       } catch {
-        // silently fail
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -413,7 +412,6 @@ export default function Home() {
   const { user } = useAuth();
   const isLoggedIn = !!user;
 
-  // Redirect admins and providers to their own dashboards
   useEffect(() => {
     if (user?.roleType === "admin") navigate("/admin", { replace: true });
     else if (user?.roleType === "provider")
@@ -434,7 +432,6 @@ export default function Home() {
 
   return (
     <div className="bg-gray-50 font-sans antialiased">
-      {/* ── Hero ── */}
       <section className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-6 py-16 flex flex-col md:flex-row gap-12 items-center">
           <div className="flex-1 min-w-0">
@@ -507,7 +504,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── How it Works ── */}
       <section className="py-16 max-w-6xl mx-auto px-6">
         <div className="text-center mb-12">
           <p className="text-xs font-semibold uppercase tracking-widest text-blue-500 mb-2">
@@ -537,7 +533,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Categories ── */}
       <section className="bg-white border-y border-gray-100 py-14">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex items-center justify-between mb-8">
@@ -582,7 +577,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Stats ── */}
       <section className="py-14 max-w-6xl mx-auto px-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
@@ -604,7 +598,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Testimonials ── */}
       <section className="bg-white border-y border-gray-100 py-14">
         <div className="max-w-6xl mx-auto px-6">
           <div className="mb-8">
@@ -652,7 +645,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
       <section className="bg-blue-500 py-14">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">

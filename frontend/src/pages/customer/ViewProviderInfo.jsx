@@ -36,7 +36,6 @@ function StarDisplay({ value, size = "w-4 h-4" }) {
   );
 }
 
-// AFTER
 export default function ProviderProfilePage({
   providerDocumentId,
   providerUsername,
@@ -44,7 +43,7 @@ export default function ProviderProfilePage({
 }) {
   const [profile, setProfile] = useState(null);
   const [reviews, setReviews] = useState([]);
-  const [profilePicture, setProfilePicture] = useState(null); // ← add this
+  const [profilePicture, setProfilePicture] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,7 +55,6 @@ export default function ProviderProfilePage({
   const token = getToken();
   if (!token) return;
   try {
-    // Step 1: fetch the provider profile
     const res = await fetch(
       `${API_URL}/api/provider-profiles/${providerDocumentId}?populate[reviews]=true`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -69,7 +67,6 @@ export default function ProviderProfilePage({
     const profileDocumentId = raw.documentId ?? raw.id;
     setProfile(p);
 
-    // Step 2: fetch user by username to get profilePicture
     if (providerUsername) {
       const userRes = await fetch(
         `${API_URL}/api/users?filters[username][$eq]=${encodeURIComponent(providerUsername)}&populate=profilePicture`,
@@ -89,7 +86,6 @@ export default function ProviderProfilePage({
       }
     }
 
-    // Step 3: fetch reviews
     const r2 = await fetch(
       `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer]=true&sort=createdAt:desc`,
       { headers: { Authorization: `Bearer ${token}` } },
@@ -167,10 +163,8 @@ export default function ProviderProfilePage({
           </div>
         ) : (
           <div className="px-6 pb-8 mt-4 space-y-6">
-            {/* ── Hero Card ── */}
             <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-5">
-                {/* Avatar: real photo or gradient initials */}
                 {profilePicture ? (
                   <img
                     src={profilePicture}
@@ -228,7 +222,6 @@ export default function ProviderProfilePage({
               </div>
             </div>
 
-            {/* ── About ── */}
             {profile.bio && (
               <div>
                 <h3 className="text-sm font-bold text-gray-900 mb-2">
@@ -240,7 +233,6 @@ export default function ProviderProfilePage({
               </div>
             )}
 
-            {/* ── Stats ── */}
             <div className="grid grid-cols-2 gap-3">
               {[
                 {
@@ -264,7 +256,6 @@ export default function ProviderProfilePage({
               ))}
             </div>
 
-            {/* ── Services Offered ── */}
             {servicesOffered.length > 0 && (
               <div>
                 <h3 className="text-sm font-bold text-gray-900 mb-3">
@@ -283,7 +274,6 @@ export default function ProviderProfilePage({
               </div>
             )}
 
-            {/* ── Reviews ── */}
             <div>
               <h3 className="text-sm font-bold text-gray-900 mb-3">
                 Customer Reviews{" "}

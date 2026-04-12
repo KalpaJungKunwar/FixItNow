@@ -28,6 +28,14 @@ function avatarColor(str) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+function extractPicUrl(profilePicture) {
+  const pic = Array.isArray(profilePicture)
+    ? profilePicture[0]
+    : profilePicture;
+  if (!pic?.url) return null;
+  return pic.url.startsWith("http") ? pic.url : `${BASE_URL}${pic.url}`;
+}
+
 export default function CustomerProfile() {
   const navigate = useNavigate();
   const [user, setUser] = useState(getUser);
@@ -40,11 +48,7 @@ export default function CustomerProfile() {
   const justUploadedRef = useRef(false);
   const [picFile, setPicFile] = useState(null);
   const [picPreview, setPicPreview] = useState(
-    user?.profilePicture?.url
-      ? user.profilePicture.url.startsWith("http")
-        ? user.profilePicture.url
-        : `${BASE_URL}${user.profilePicture.url}`
-      : null,
+    extractPicUrl(user?.profilePicture),
   );
   const [picLoading, setPicLoading] = useState(false);
   const [picError, setPicError] = useState("");
@@ -56,12 +60,9 @@ export default function CustomerProfile() {
       justUploadedRef.current = false;
       return;
     }
-    if (user?.profilePicture?.url) {
-      const url = user.profilePicture.url;
-      setPicPreview(url.startsWith("http") ? url : `${BASE_URL}${url}`);
-    }
-  }, [user?.profilePicture?.url]);
-  
+    const url = extractPicUrl(user?.profilePicture);
+    if (url) setPicPreview(url);
+  }, [user?.profilePicture]);
 
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
   const [pwSaving, setPwSaving] = useState(false);
@@ -226,11 +227,8 @@ export default function CustomerProfile() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-        {/* Avatar Banner */}
         <div className="bg-gray-900 rounded-2xl p-6 flex items-center gap-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-40 h-40 rounded-full bg-white/[0.03] -translate-y-1/2 translate-x-1/2" />
-
-          {/* Avatar / profile picture */}
           <div className="relative flex-shrink-0 group">
             {picPreview ? (
               <img
@@ -245,7 +243,6 @@ export default function CustomerProfile() {
                 {(user?.username || "U").slice(0, 2).toUpperCase()}
               </div>
             )}
-            {/* Camera overlay on hover */}
             <button
               onClick={() => picInputRef.current?.click()}
               className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
@@ -324,8 +321,6 @@ export default function CustomerProfile() {
             )}
           </div>
         </div>
-
-        {/* Account Info */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6">
           <h2 className="text-sm font-bold text-gray-900 mb-5">
             Account Information
@@ -384,8 +379,6 @@ export default function CustomerProfile() {
             {saving ? "Saving..." : "Save Changes"}
           </button>
         </div>
-
-        {/* Change Password */}
         <div className="bg-white border border-gray-200 rounded-2xl p-6">
           <h2 className="text-sm font-bold text-gray-900 mb-1">
             Change Password
