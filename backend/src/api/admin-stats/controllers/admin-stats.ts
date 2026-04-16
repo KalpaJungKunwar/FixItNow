@@ -70,7 +70,7 @@ export default {
     const providerProfiles = await strapi.db
       .query("api::provider-profile.provider-profile")
       .findMany({
-        select: ["rating", "avg_hourly_rate", "specialty"] as any,
+        select: ["rating",  "specialty"] as any,
       });
 
     const avgRating = providerProfiles.length
@@ -82,14 +82,7 @@ export default {
         ).toFixed(2)
       : "0";
 
-    const avgHourlyRate = providerProfiles.length
-      ? (
-          providerProfiles.reduce(
-            (s: number, p: any) => s + (p.avg_hourly_rate || 0),
-            0,
-          ) / providerProfiles.length
-        ).toFixed(2)
-      : "0";
+
 
     const specialtyBreakdown = providerProfiles.reduce(
       (acc: Record<string, number>, p: any) => {
@@ -223,7 +216,6 @@ export default {
       providers: {
         total: totalProviderProfiles,
         avgRating,
-        avgHourlyRate,
         specialtyBreakdown,
       },
       recent: {

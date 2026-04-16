@@ -32,10 +32,6 @@
       "type": "string",
       "required": true
     },
-    "avg_hourly_rate": {
-      "type": "decimal",
-      "required": true
-    },
     "rating": {
       "type": "decimal",
       "required": false,

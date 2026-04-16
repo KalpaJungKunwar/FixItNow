@@ -602,7 +602,6 @@ export interface ApiProviderProfileProviderProfile
     draftAndPublish: true;
   };
   attributes: {
-    avg_hourly_rate: Schema.Attribute.Decimal & Schema.Attribute.Required;
     bio: Schema.Attribute.Text;
     createdAt: Schema.Attribute.DateTime;
     createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

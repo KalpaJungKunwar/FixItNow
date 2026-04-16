@@ -52,64 +52,64 @@ export default function ProviderProfilePage({
   }, [providerDocumentId]);
 
   const fetchProfile = async () => {
-  const token = getToken();
-  if (!token) return;
-  try {
-    const res = await fetch(
-      `${API_URL}/api/provider-profiles/${providerDocumentId}?populate[reviews]=true`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    const data = await res.json();
-    const raw = data?.data ?? data;
-    if (!raw) return;
-
-    const p = raw.attributes ?? raw;
-    const profileDocumentId = raw.documentId ?? raw.id;
-    setProfile(p);
-
-    if (providerUsername) {
-      const userRes = await fetch(
-        `${API_URL}/api/users?filters[username][$eq]=${encodeURIComponent(providerUsername)}&populate=profilePicture`,
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${API_URL}/api/provider-profiles/${providerDocumentId}?populate[reviews]=true`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      if (userRes.ok) {
-        const users = await userRes.json();
-        const userData = Array.isArray(users) ? users[0] : null;
-        const pic = Array.isArray(userData?.profilePicture)
-          ? (userData.profilePicture[0] ?? null)
-          : (userData?.profilePicture ?? null);
-        if (pic?.url) {
-          setProfilePicture(
-            pic.url.startsWith("http") ? pic.url : `${API_URL}${pic.url}`,
-          );
+      const data = await res.json();
+      const raw = data?.data ?? data;
+      if (!raw) return;
+
+      const p = raw.attributes ?? raw;
+      const profileDocumentId = raw.documentId ?? raw.id;
+      setProfile(p);
+
+      if (providerUsername) {
+        const userRes = await fetch(
+          `${API_URL}/api/users?filters[username][$eq]=${encodeURIComponent(providerUsername)}&populate=profilePicture`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (userRes.ok) {
+          const users = await userRes.json();
+          const userData = Array.isArray(users) ? users[0] : null;
+          const pic = Array.isArray(userData?.profilePicture)
+            ? (userData.profilePicture[0] ?? null)
+            : (userData?.profilePicture ?? null);
+          if (pic?.url) {
+            setProfilePicture(
+              pic.url.startsWith("http") ? pic.url : `${API_URL}${pic.url}`,
+            );
+          }
         }
       }
-    }
 
-    const r2 = await fetch(
-      `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer]=true&sort=createdAt:desc`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    if (r2.ok) {
-      const rdata = await r2.json();
-      const reviewList = (rdata?.data ?? []).map((r) => {
-        const attrs = r.attributes ?? r;
-        return {
-          ...attrs,
-          documentId: r.documentId ?? r.id,
-          customer: attrs.customer?.data
-            ? (attrs.customer.data.attributes ?? attrs.customer.data)
-            : (attrs.customer ?? {}),
-        };
-      });
-      setReviews(reviewList);
+      const r2 = await fetch(
+        `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer]=true&sort=createdAt:desc`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (r2.ok) {
+        const rdata = await r2.json();
+        const reviewList = (rdata?.data ?? []).map((r) => {
+          const attrs = r.attributes ?? r;
+          return {
+            ...attrs,
+            documentId: r.documentId ?? r.id,
+            customer: attrs.customer?.data
+              ? (attrs.customer.data.attributes ?? attrs.customer.data)
+              : (attrs.customer ?? {}),
+          };
+        });
+        setReviews(reviewList);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-  } catch (e) {
-    console.error(e);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const username = providerUsername || "Provider";
   const colorClass = avatarColor(username);
@@ -235,12 +235,6 @@ export default function ProviderProfilePage({
 
             <div className="grid grid-cols-2 gap-3">
               {[
-                {
-                  label: "Avg. Rate",
-                  value: profile.avg_hourly_rate
-                    ? `Rs. ${profile.avg_hourly_rate}/hr`
-                    : "—",
-                },
                 {
                   label: "Rating",
                   value: avgRating ? `${avgRating} / 5` : "New",

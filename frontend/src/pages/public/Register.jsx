@@ -14,7 +14,6 @@ export default function Register() {
     specialty: "",
     experience: "",
     location: "",
-    avg_hourly_rate: "",
   });
 
   const [idDocument, setIdDocument] = useState(null);
@@ -61,7 +60,6 @@ export default function Register() {
           specialty: formData.specialty,
           experience: Number(formData.experience),
           location: formData.location,
-          avg_hourly_rate: Number(formData.avg_hourly_rate),
         });
       }
       await uploadDocument(idDocument, idDocType, user.id);
@@ -218,21 +216,7 @@ export default function Register() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Average Hourly Rate (NPR)
-                </label>
-                <input
-                  type="number"
-                  name="avg_hourly_rate"
-                  placeholder="e.g. 500"
-                  value={formData.avg_hourly_rate}
-                  onChange={handleChange}
-                  required
-                  min={0}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+             
             </div>
           )}
 

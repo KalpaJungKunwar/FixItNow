@@ -1689,7 +1689,6 @@ function ProfileTab({
     specialty: profile?.specialty || "",
     location: profile?.location || "",
     experience: profile?.experience || "",
-    avg_hourly_rate: profile?.avg_hourly_rate || "",
     bio: profile?.bio || "",
     services_offered_text: (() => {
       const s = profile?.services_offered;
@@ -1869,9 +1868,6 @@ function ProfileTab({
             specialty: form.specialty,
             location: form.location,
             experience: form.experience ? Number(form.experience) : null,
-            avg_hourly_rate: form.avg_hourly_rate
-              ? Number(form.avg_hourly_rate)
-              : null,
             bio: form.bio || null,
             services_offered: form.services_offered_text
               ? form.services_offered_text
@@ -2100,18 +2096,6 @@ function ProfileTab({
               onChange={(e) => set("experience", e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
               placeholder="e.g. 5"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-              Avg. Hourly Rate (Rs.)
-            </label>
-            <input
-              type="number"
-              value={form.avg_hourly_rate}
-              onChange={(e) => set("avg_hourly_rate", e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
-              placeholder="e.g. 500"
             />
           </div>
         </div>

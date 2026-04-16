@@ -21,7 +21,7 @@ import ProviderDashboard from "./pages/serviceProvider/providerdashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import PaymentSuccess from "./pages/payment/PaymentSuccess";
 import PaymentFailed from "./pages/payment/PaymentFailed";
-import ProtectedRoute from "./routes/ProtectedRoute";
+import ProtectedRoute, { PublicOnlyRoute } from "./routes/ProtectedRoute";
 
 const NO_LAYOUT_ROUTES = ["/providerdashboard", "/admin"];
 
@@ -37,7 +37,7 @@ function Layout({ children }) {
     logout();
     navigate("/");
   }, [logout, navigate]);
-  
+
   return (
     <div className="flex flex-col min-h-screen">
       {showWarning && (
@@ -57,8 +57,22 @@ function App() {
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <Login />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicOnlyRoute>
+                <Register />
+              </PublicOnlyRoute>
+            }
+          />
           <Route path="/pending-approval" element={<PendingApproval />} />
 
           <Route

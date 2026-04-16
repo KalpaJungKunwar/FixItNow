@@ -560,10 +560,8 @@ function ProviderProfilesTab({ token }) {
       specialty: a.specialty || "",
       location: a.location || "",
       experience: a.experience || "",
-      avg_hourly_rate: a.avg_hourly_rate || "",
       bio: a.bio || "",
       rating: a.rating || "",
-      verified: a.verified ? "true" : "false",
     });
     setEditItem(profile);
     setSaveError("");
@@ -585,10 +583,8 @@ function ProviderProfilesTab({ token }) {
             specialty: editValues.specialty,
             location: editValues.location,
             experience: Number(editValues.experience),
-            avg_hourly_rate: Number(editValues.avg_hourly_rate),
             bio: editValues.bio,
             rating: Number(editValues.rating),
-            verified: editValues.verified === "true",
           },
         }),
       });
@@ -635,19 +631,9 @@ function ProviderProfilesTab({ token }) {
             },
             { key: "location", label: "Location" },
             { key: "experience", label: "Years of Experience", type: "number" },
-            {
-              key: "avg_hourly_rate",
-              label: "Avg Hourly Rate (Rs.)",
-              type: "number",
-            },
             { key: "bio", label: "Bio", type: "textarea" },
             { key: "rating", label: "Rating (0–5)", type: "number" },
-            {
-              key: "verified",
-              label: "Verified",
-              type: "select",
-              options: ["true", "false"],
-            },
+            
           ]}
           values={editValues}
           onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
@@ -726,17 +712,12 @@ function ProviderProfilesTab({ token }) {
                   </span>
                   <span className="text-zinc-500 text-xs">{email}</span>
                   {badge(a.specialty)}
-                  {a.verified && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20">
-                      ✓ Verified
-                    </span>
-                  )}
+                 
                 </div>
                 <div className="flex gap-4 flex-wrap text-xs text-zinc-500">
                   <span>📍 {a.location || "—"}</span>
                   <span>⭐ {a.rating ? Number(a.rating).toFixed(1) : "—"}</span>
                   <span>{a.experience || "—"} yrs exp</span>
-                  <span>Rs. {a.avg_hourly_rate || "—"}/hr</span>
                 </div>
                 {a.bio && (
                   <p className="text-zinc-600 text-xs mt-1 line-clamp-1">
@@ -2301,14 +2282,8 @@ export default function AdminDashboard() {
                 color="#3b82f6"
               />
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                title="Reviews"
-                value={reviews.total}
-                icon="star"
-                color="#eab308"
-                sub={`Avg rating: ${reviews.avgRating}`}
-              />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+             
               <StatCard
                 title="Avg Provider Rating"
                 value={providers.avgRating}
