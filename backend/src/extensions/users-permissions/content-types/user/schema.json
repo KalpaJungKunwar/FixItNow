@@ -95,7 +95,8 @@
       "enum": [
         "pending",
         "approved",
-        "rejected"
+        "rejected",
+        "blocked"
       ]
     },
     "documentations": {

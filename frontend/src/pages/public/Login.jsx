@@ -34,31 +34,52 @@ export default function Login() {
         { headers: { Authorization: `Bearer ${jwt}` } },
       );
 
-      const { approval_status, roleType } = userRes.data;
+      const { roleType } = userRes.data;
 
-      if (approval_status === "pending") {
-        setError(
-          "⏳ Your account is pending admin approval. Please check back in 24–48 hours.",
-        );
-        return;
-      }
-      if (approval_status === "rejected") {
-        setError(
-          "❌ Your account has been rejected. Please contact support at support@fixitnow.com.",
-        );
-        return;
-      }
-
+      // If login succeeds, user is approved — just route them
       login(userRes.data, jwt);
 
       if (roleType === "provider") navigate("/providerdashboard");
       else if (roleType === "admin") navigate("/admin");
       else navigate("/");
     } catch (err) {
+      const strapiMsg = err.response?.data?.error?.message;
+
+      if (strapiMsg === "Your account has been blocked by an administrator") {
+        try {
+          const statusRes = await axios.post(
+            `${API_URL}/admin-approval/check-status`,
+            {
+              email: formData.email,
+            },
+          );
+          const { approvalStatus } = statusRes.data;
+
+          if (approvalStatus === "pending") {
+            setError(
+              "⏳ Your account is pending admin approval. Please check back in 24–48 hours.",
+            );
+          } else if (approvalStatus === "rejected") {
+            setError(
+              "❌ Your account has been rejected. Please contact support at support@fixitnow.com.",
+            );
+          } else {
+            setError(
+              "🚫 Your account has been blocked. Please contact support at support@fixitnow.com.",
+            );
+          }
+        } catch {
+          setError(
+            "🚫 Your account has been blocked. Please contact support at support@fixitnow.com.",
+          );
+        }
+        return;
+      }
+
       const msg =
-        err.response?.data?.error?.message === "Invalid identifier or password"
+        strapiMsg === "Invalid identifier or password"
           ? "Invalid email or password."
-          : err.response?.data?.error?.message || "Invalid email or password.";
+          : strapiMsg || "Invalid email or password.";
       setError(msg);
     } finally {
       setLoading(false);

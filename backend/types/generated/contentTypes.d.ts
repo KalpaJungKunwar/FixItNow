@@ -442,7 +442,7 @@ export interface ApiBidBid extends Struct.CollectionTypeSchema {
   };
   attributes: {
     amount: Schema.Attribute.Decimal & Schema.Attribute.Required;
-    availability: Schema.Attribute.String & Schema.Attribute.Required;
+    availability: Schema.Attribute.DateTime & Schema.Attribute.Required;
     bid_status: Schema.Attribute.Enumeration<
       ['pending', 'accepted', 'rejected']
     > &
@@ -1250,7 +1250,7 @@ export interface PluginUsersPermissionsUser
   };
   attributes: {
     approvalStatus: Schema.Attribute.Enumeration<
-      ['pending', 'approved', 'rejected']
+      ['pending', 'approved', 'rejected', 'blocked']
     > &
       Schema.Attribute.Required &
       Schema.Attribute.DefaultTo<'pending'>;

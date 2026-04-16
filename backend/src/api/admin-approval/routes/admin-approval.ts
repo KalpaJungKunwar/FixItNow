@@ -48,6 +48,13 @@ export default {
       handler: "admin-approval.unblockUser",
       config: { policies: [] },
     },
+
+    {
+      method: "POST",
+      path: "/admin-approval/check-status",
+      handler: "admin-approval.checkStatus",
+      config: { auth: false },
+    },
     {
       method: "GET",
       path: "/admin-approval/provider-profiles",

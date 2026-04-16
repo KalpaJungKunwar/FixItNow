@@ -48,21 +48,7 @@ const SparklesIcon = ({ className }) => (
     />
   </svg>
 );
-const CpuIcon = ({ className }) => (
-  <svg
-    className={className}
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={1.5}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z"
-    />
-  </svg>
-);
+
 const PaintIcon = ({ className }) => (
   <svg
     className={className}
@@ -355,6 +341,112 @@ function avatarColor(str) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+function MapPicker({ lat, lng, onLocationSelect }) {
+  const mapRef = useRef(null);
+  const leafletMap = useRef(null);
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (leafletMap.current) return;
+
+    const initMap = () => {
+      const L = window.L;
+      if (!L) return;
+
+      const initialLat = lat;
+      const initialLng = lng;
+
+      const map = L.map(mapRef.current, {
+        center: [initialLat, initialLng],
+        zoom: 14,
+        zoomControl: true,
+      });
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 19,
+      }).addTo(map);
+
+      const pinIcon = L.divIcon({
+        className: "",
+        html: `
+          <div style="
+            width: 36px; height: 36px;
+            background: #3b82f6;
+            border: 3px solid white;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 4px 12px rgba(59,130,246,0.5);
+            cursor: grab;
+          "></div>
+        `,
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+      });
+
+      const marker = L.marker([initialLat, initialLng], {
+        icon: pinIcon,
+        draggable: true,
+      }).addTo(map);
+
+      marker.on("dragend", (e) => {
+        const { lat, lng } = e.target.getLatLng();
+        onLocationSelect(lat, lng);
+      });
+
+      map.on("click", (e) => {
+        const { lat, lng } = e.latlng;
+        marker.setLatLng([lat, lng]);
+        onLocationSelect(lat, lng);
+      });
+
+      leafletMap.current = map;
+      markerRef.current = marker;
+    };
+
+    if (window.L) {
+      initMap();
+    } else {
+      if (!document.querySelector('link[href*="leaflet"]')) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.onload = initMap;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      if (leafletMap.current) {
+        leafletMap.current.remove();
+        leafletMap.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (lat && lng && leafletMap.current && markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+      leafletMap.current.flyTo([lat, lng], 16, { duration: 1.2 });
+    }
+  }, [lat, lng]);
+
+  return (
+    <div className="relative rounded-xl overflow-hidden border-2 border-blue-200 mb-1">
+      <div ref={mapRef} style={{ height: "220px", width: "100%" }} />
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
+        <span className="bg-white/90 backdrop-blur-sm text-xs font-semibold text-gray-600 px-3 py-1 rounded-full shadow-sm border border-gray-200">
+          Click or drag the pin to set location
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function RequestFormModal({ onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({
@@ -371,7 +463,9 @@ function RequestFormModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [locLoading, setLocLoading] = useState(false);
   const [locStatus, setLocStatus] = useState("");
+  const [showMap, setShowMap] = useState(false);
   const [error, setError] = useState("");
+  const [locSource, setLocSource] = useState("");
   const fileRef = useRef();
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -391,6 +485,7 @@ function RequestFormModal({ onClose, onSuccess }) {
         }));
         setLocLoading(false);
         setLocStatus("success");
+        setShowMap(true);
       },
       () => {
         setLocLoading(false);
@@ -398,6 +493,12 @@ function RequestFormModal({ onClose, onSuccess }) {
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  };
+
+  const handleMapSelect = (lat, lng) => {
+    setForm((f) => ({ ...f, customer_lat: lat, customer_lng: lng }));
+    setLocStatus("success");
+    setLocSource("map");
   };
 
   const handleSubmit = async () => {
@@ -463,6 +564,7 @@ function RequestFormModal({ onClose, onSuccess }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+        {/* Header */}
         <div className="px-7 pt-6 pb-0 flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-medium">
@@ -479,6 +581,8 @@ function RequestFormModal({ onClose, onSuccess }) {
             ×
           </button>
         </div>
+
+        {/* Progress bar */}
         <div className="px-7 mt-4">
           <div className="h-1 bg-gray-100 rounded-full">
             <div
@@ -487,7 +591,9 @@ function RequestFormModal({ onClose, onSuccess }) {
             />
           </div>
         </div>
+
         <div className="px-7 py-6">
+          {/* ── STEP 1 ── */}
           {step === 1 && (
             <>
               <label className="block text-xs font-semibold text-gray-700 mb-2">
@@ -498,7 +604,11 @@ function RequestFormModal({ onClose, onSuccess }) {
                   <button
                     key={c.value}
                     onClick={() => set("category", c.value)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${form.category === c.value ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                      form.category === c.value
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 bg-white hover:border-gray-300"
+                    }`}
                   >
                     <div
                       className={`w-7 h-7 rounded-lg flex items-center justify-center ${form.category === c.value ? "bg-blue-100" : "bg-gray-100"}`}
@@ -515,6 +625,7 @@ function RequestFormModal({ onClose, onSuccess }) {
                   </button>
                 ))}
               </div>
+
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                 Task Title *
               </label>
@@ -524,6 +635,7 @@ function RequestFormModal({ onClose, onSuccess }) {
                 value={form.title}
                 onChange={(e) => set("title", e.target.value)}
               />
+
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                 Describe the issue *
               </label>
@@ -533,6 +645,7 @@ function RequestFormModal({ onClose, onSuccess }) {
                 value={form.description}
                 onChange={(e) => set("description", e.target.value)}
               />
+
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                 Add Photos (Optional)
               </label>
@@ -557,6 +670,7 @@ function RequestFormModal({ onClose, onSuccess }) {
                   }
                 />
               </div>
+
               {error && (
                 <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600 mb-4">
                   {error}
@@ -577,51 +691,150 @@ function RequestFormModal({ onClose, onSuccess }) {
               </button>
             </>
           )}
+
+          {/* ── STEP 2 ── */}
           {step === 2 && (
             <>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                 Service Location *
               </label>
               <input
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
                 placeholder="e.g. Kathmandu, Baneshwor"
                 value={form.location}
                 onChange={(e) => set("location", e.target.value)}
               />
-              <button
-                onClick={handleUseLocation}
-                disabled={locLoading}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold mb-1 border-2 transition-all ${locStatus === "success" ? "border-emerald-400 bg-emerald-50 text-emerald-700" : locStatus === "error" ? "border-red-300 bg-red-50 text-red-600" : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"}`}
-              >
-                {locLoading ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />{" "}
-                    Detecting location...
-                  </>
-                ) : locStatus === "success" ? (
-                  <>
-                    <CheckIcon className="w-4 h-4" /> Location captured ✓
-                  </>
-                ) : locStatus === "error" ? (
-                  <>⚠ Could not get location — please allow browser access</>
-                ) : (
-                  <>
-                    <MapPinIcon className="w-4 h-4" /> Use My Current Location
-                  </>
-                )}
-              </button>
-              {locStatus === "success" && form.customer_lat && (
-                <p className="text-xs text-emerald-600 mb-4 text-center">
-                  📍 {form.customer_lat.toFixed(5)},{" "}
-                  {form.customer_lng.toFixed(5)} — provider will see this on the
-                  map
+
+              {/* Location action buttons */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => {
+                    if (!navigator.geolocation) {
+                      setLocStatus("error");
+                      return;
+                    }
+                    setLocLoading(true);
+                    setLocStatus("");
+                    navigator.geolocation.getCurrentPosition(
+                      (pos) => {
+                        setForm((f) => ({
+                          ...f,
+                          customer_lat: pos.coords.latitude,
+                          customer_lng: pos.coords.longitude,
+                        }));
+                        setLocLoading(false);
+                        setLocStatus("success");
+                        setLocSource("gps");
+                        setShowMap(true);
+                      },
+                      () => {
+                        setLocLoading(false);
+                        setLocStatus("error");
+                      },
+                      { enableHighAccuracy: true, timeout: 10000 },
+                    );
+                  }}
+                  disabled={locLoading}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+                    locStatus === "success" && locSource === "gps" // ← was: !showMap && form.customer_lat
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                      : locStatus === "error"
+                        ? "border-red-300 bg-red-50 text-red-600"
+                        : "border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100"
+                  }`}
+                >
+                  {locLoading ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />{" "}
+                      Detecting...
+                    </>
+                  ) : locStatus === "error" ? (
+                    <>⚠ Allow location access</>
+                  ) : (
+                    <>
+                      <MapPinIcon className="w-3.5 h-3.5" /> Use GPS Location
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setShowMap((v) => !v)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
+                    showMap
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : locSource === "map" && form.customer_lat // ← was: form.customer_lat && locStatus !== "success"
+                        ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50"
+                  }`}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                    />
+                  </svg>
+                  {showMap ? "Hide Map" : "Pick on Map"}
+                </button>
+              </div>
+
+              {/* Map — shown when toggled OR after GPS capture */}
+              {showMap && (
+                <div className="mb-3">
+                  <MapPicker
+                    lat={form.customer_lat ?? 27.7172}
+                    lng={form.customer_lng ?? 85.324}
+                    onLocationSelect={handleMapSelect}
+                  />
+                  {form.customer_lat ? (
+                    <div className="flex items-center justify-between mt-1.5 px-1">
+                      <p className="text-xs text-emerald-600">
+                        📍 {form.customer_lat.toFixed(5)},{" "}
+                        {form.customer_lng.toFixed(5)}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setForm((f) => ({
+                            ...f,
+                            customer_lat: null,
+                            customer_lng: null,
+                          }));
+                          setLocStatus("");
+                          setLocSource("");
+                        }}
+                        className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center mt-1.5">
+                      Click the map or drag the pin to set your location
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Coordinate hint when map is hidden */}
+              {!showMap && form.customer_lat && (
+                <p className="text-xs text-emerald-600 mb-3 flex items-center gap-1">
+                  <CheckIcon className="w-3 h-3" />
+                  {form.customer_lat.toFixed(5)}, {form.customer_lng.toFixed(5)}{" "}
+                  — tap "Pick on Map" to adjust
                 </p>
               )}
-              {locStatus !== "success" && (
-                <p className="text-xs text-gray-400 mb-4 text-center">
-                  Optional but helps provider navigate to you
+              {!showMap && !form.customer_lat && (
+                <p className="text-xs text-gray-400 mb-3 text-center">
+                  Optional — helps the provider navigate to you
                 </p>
               )}
+
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                 Preferred Date & Time
               </label>
@@ -629,8 +842,14 @@ function RequestFormModal({ onClose, onSuccess }) {
                 type="datetime-local"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
                 value={form.preferred_date}
+                min={new Date(
+                  Date.now() - new Date().getTimezoneOffset() * 60000,
+                )
+                  .toISOString()
+                  .slice(0, 16)}
                 onChange={(e) => set("preferred_date", e.target.value)}
               />
+
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                 Suggested Budget (Rs.)
               </label>
@@ -646,17 +865,20 @@ function RequestFormModal({ onClose, onSuccess }) {
                   onChange={(e) => set("suggested_budget", e.target.value)}
                 />
               </div>
+
               <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 mb-5">
                 <p className="text-xs text-blue-700">
                   <span className="font-semibold">Tip:</span> Providers will
                   offer competitive prices. Check ratings before accepting.
                 </p>
               </div>
+
               {error && (
                 <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600 mb-4">
                   {error}
                 </div>
               )}
+
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(1)}
@@ -679,7 +901,6 @@ function RequestFormModal({ onClose, onSuccess }) {
     </div>
   );
 }
-
 function DeleteConfirmModal({ onConfirm, onCancel, loading }) {
   return (
     <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -770,7 +991,13 @@ function BidCard({ bid, onAccept, onViewProfile }) {
           {attrs.availability && (
             <span className="text-xs text-gray-400 flex items-center gap-1">
               <ClockIcon className="w-3 h-3" />
-              {attrs.availability}
+              {new Date(attrs.availability).toLocaleString("en-NP", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </span>
           )}
         </div>
@@ -1318,9 +1545,6 @@ export default function ServicePage() {
         <div className="max-w-6xl mx-auto px-6 pb-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-500 mb-1">
-                Dashboard
-              </p>
               <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
                 My Requests
               </h1>

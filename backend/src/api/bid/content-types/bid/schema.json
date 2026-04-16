@@ -19,10 +19,6 @@
       "type": "text",
       "required": true
     },
-    "availability": {
-      "type": "string",
-      "required": true
-    },
     "bid_status": {
       "type": "enumeration",
       "required": true,
@@ -42,6 +38,10 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "plugin::users-permissions.user"
+    },
+    "availability": {
+      "type": "datetime",
+      "required": true
     }
   }
 }

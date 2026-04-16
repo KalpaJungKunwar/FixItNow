@@ -574,8 +574,7 @@ function Sidebar({ active, setActive, user, profile }) {
     { id: "requests", Icon: SearchIcon, label: "Find Requests" },
     { id: "bids", Icon: ClipboardIcon, label: "My Bids" },
     { id: "profile", Icon: UserIcon, label: "My Profile" },
-    { id: "reviews", Icon: StarIcon, label: "My Reviews" }, 
-  
+    { id: "reviews", Icon: StarIcon, label: "My Reviews" },
   ];
   return (
     <div className="w-56 min-h-screen bg-gray-900 flex flex-col flex-shrink-0 border-r border-white/5">
@@ -938,10 +937,15 @@ function RequestCard({ request, myBids, onBid, compact }) {
                   Availability *
                 </label>
                 <input
+                  type="datetime-local"
                   value={bidAvail}
                   onChange={(e) => setBidAvail(e.target.value)}
+                  min={new Date(
+                    Date.now() - new Date().getTimezoneOffset() * 60000,
+                  )
+                    .toISOString()
+                    .slice(0, 16)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
-                  placeholder="available dates/times"
                 />
               </div>
               <div>
@@ -1439,7 +1443,18 @@ function MyBidsTab({ providerId, payments }) {
                           <span>
                             Available:{" "}
                             <strong className="text-gray-900">
-                              {bid.availability ?? "—"}
+                              {bid.availability
+                                ? new Date(bid.availability).toLocaleString(
+                                    "en-NP",
+                                    {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    },
+                                  )
+                                : "—"}
                             </strong>
                           </span>
                         </div>
@@ -2618,7 +2633,7 @@ export default function ProviderDashboard() {
             user={user}
             onProfileSaved={(updated) => setProfile(updated)}
             onPicSaved={() => fetchProfile(user)}
-            onUserSaved={handleUserSaved} 
+            onUserSaved={handleUserSaved}
           />
         )}
         {activeTab === "reviews" && <ReviewsTab providerId={user?.id} />}

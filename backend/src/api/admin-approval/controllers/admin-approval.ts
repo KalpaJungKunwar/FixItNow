@@ -220,7 +220,7 @@ export default {
     await strapi.entityService.update(
       "plugin::users-permissions.user",
       userId,
-      { data: { blocked: true } as any },
+      { data: { blocked: true, approvalStatus: "blocked" } as any },
     );
     ctx.body = { message: "User blocked" };
   },
@@ -231,9 +231,23 @@ export default {
     await strapi.entityService.update(
       "plugin::users-permissions.user",
       userId,
-      { data: { blocked: false } as any },
+      { data: { blocked: false, approvalStatus: "approved" } as any },
     );
     ctx.body = { message: "User unblocked" };
+  },
+  
+  async checkStatus(ctx: Context) {
+    const { email } = ctx.request.body as any;
+    if (!email) return ctx.badRequest("Email required");
+
+    const user = await strapi.query("plugin::users-permissions.user").findOne({
+      where: { email },
+      select: ["approvalStatus", "blocked"],
+    });
+
+    if (!user) return ctx.notFound("User not found");
+
+    ctx.body = { approvalStatus: user.approvalStatus };
   },
 
   async getUserDetail(ctx: Context) {

@@ -179,7 +179,7 @@ export default function Register() {
                   <option value="carpentry">Carpentry</option>
                   <option value="painting">Painting</option>
                   <option value="cleaning">Cleaning</option>
-                  <option value="technical">HVAC</option>
+                  <option value="technical">Technical</option>
                   <option value="other">Other</option>
                 </select>
               </div>
