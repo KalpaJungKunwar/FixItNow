@@ -633,7 +633,6 @@ function ProviderProfilesTab({ token }) {
             { key: "experience", label: "Years of Experience", type: "number" },
             { key: "bio", label: "Bio", type: "textarea" },
             { key: "rating", label: "Rating (0–5)", type: "number" },
-            
           ]}
           values={editValues}
           onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
@@ -712,7 +711,6 @@ function ProviderProfilesTab({ token }) {
                   </span>
                   <span className="text-zinc-500 text-xs">{email}</span>
                   {badge(a.specialty)}
-                 
                 </div>
                 <div className="flex gap-4 flex-wrap text-xs text-zinc-500">
                   <span>📍 {a.location || "—"}</span>
@@ -1999,6 +1997,7 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${token}` },
       });
       await fetchPendingUsers();
+      await fetchAllUsers();
     } finally {
       setActionLoading(null);
     }
@@ -2283,7 +2282,6 @@ export default function AdminDashboard() {
               />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-             
               <StatCard
                 title="Avg Provider Rating"
                 value={providers.avgRating}
@@ -2684,6 +2682,17 @@ export default function AdminDashboard() {
                     >
                       Details
                     </button>
+                    {u.approvalStatus === "rejected" && (
+                      <button
+                        onClick={() => handleApprove(u.id)}
+                        disabled={actionLoading === u.id + "_approve"}
+                        className="bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        {actionLoading === u.id + "_approve"
+                          ? "..."
+                          : "Approve"}
+                      </button>
+                    )}
                     {u.blocked ? (
                       <button
                         onClick={() => handleUnblockUser(u.id)}

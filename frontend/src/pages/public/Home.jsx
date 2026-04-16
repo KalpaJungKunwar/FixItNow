@@ -187,7 +187,7 @@ const categories = [
   { icon: WrenchIcon, label: "Plumbing", desc: "Pipes, leaks & fixtures" },
   { icon: BoltIcon, label: "Electrical", desc: "Wiring, boards & fittings" },
   { icon: SparklesIcon, label: "Cleaning", desc: "Deep & regular cleaning" },
-  { icon: CpuIcon, label: "Appliance", desc: "Repair & installation" },
+  { icon: CpuIcon, label: "Carpentry", desc: "Woodwork & repairs" },
   { icon: PaintIcon, label: "Painting", desc: "Interior & exterior" },
 ];
 
@@ -296,7 +296,7 @@ function LiveMarketplace({ isLoggedIn }) {
       }
     };
     load();
-    const interval = setInterval(load, 15_000);
+    const interval = setInterval(load, 60_000);
     return () => {
       cancelled = true;
       clearInterval(interval);

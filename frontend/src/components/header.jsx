@@ -1,9 +1,10 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Header() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -12,59 +13,76 @@ export default function Header() {
 
   const isCustomer = user?.roleType === "customer";
 
+  // Helper to highlight active links
+  const isActive = (path) => location.pathname === path;
+
+  const navLinkClass = (path) => `
+    relative py-1 transition-all duration-300 ease-in-out
+    ${isActive(path) ? "text-blue-700 font-medium" : "text-slate-600 hover:text-blue-600"}
+    after:content-[''] after:absolute after:left-0 after:bottom-0 after:h-[2px] 
+    after:w-full after:bg-blue-600 after:scale-x-0 after:transition-transform 
+    ${isActive(path) ? "after:scale-x-100" : "hover:after:scale-x-100"}
+  `;
+
   return (
-    <header className="w-full bg-white shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-        <Link to="/" className="text-xl font-semibold text-blue-500">
-          FixitNow
+    <header className="w-full bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50 overflow-hidden shadow-sm">
+      {/* Decorative Background Elements */}
+      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-400/10 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-10 left-1/4 w-32 h-32 rounded-full bg-indigo-400/10 blur-2xl pointer-events-none" />
+
+      <div className="relative max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+        {/* Logo */}
+        <Link 
+          to="/" 
+          className="group flex items-center space-x-2 text-2xl font-bold tracking-tight text-blue-700"
+        >
+          
+          <span>Fixit<span className="text-slate-800">Now</span></span>
         </Link>
 
-        <nav className="flex items-center space-x-6 text-sm text-gray-600">
-          {isCustomer && (
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center space-x-8 text-sm font-medium">
+          {isCustomer ? (
             <>
-              <Link to="/" className="hover:text-gray-900">
-                Home
-              </Link>
-              <Link to="/services" className="hover:text-gray-900">
-                Services
-              </Link>
-              <Link to="/dashboard" className="hover:text-gray-900">
-                My Bookings
-              </Link>
-              <Link to="/profile" className="hover:text-gray-900">
-                Profile
-              </Link>
+              <Link to="/" className={navLinkClass("/")}>Home</Link>
+              <Link to="/services" className={navLinkClass("/services")}>Services</Link>
+              <Link to="/dashboard" className={navLinkClass("/dashboard")}>My Bookings</Link>
+              <Link to="/profile" className={navLinkClass("/profile")}>Profile</Link>
             </>
-          )}
-
-          {!user && (
+          ) : !user && (
             <>
-              <Link to="/" className="hover:text-gray-900">
-                Home
-              </Link>
-              <Link to="/login" className="hover:text-gray-900">
-                Login
-              </Link>
+              <Link to="/" className={navLinkClass("/")}>Home</Link>
+              <Link to="/login" className="text-slate-600 hover:text-blue-600 transition-colors">Login</Link>
               <Link
                 to="/register"
-                className="bg-blue-500 hover:bg-blue-600 rounded-md px-4 py-2 text-white"
+                className="bg-blue-600 hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 text-white px-5 py-2.5 rounded-full transition-all active:scale-95"
               >
-                Sign Up
+                Get Started
               </Link>
             </>
           )}
 
           {user && (
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center pl-4 border-l border-slate-200 ml-4">
               <button
                 onClick={handleLogout}
-                className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm"
+                className="group flex items-center space-x-2 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 px-4 py-2 rounded-full text-sm font-semibold transition-all"
               >
-                Logout
+                <span>Logout</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
               </button>
             </div>
           )}
         </nav>
+
+        {/* Mobile Menu Button (Placeholder for functionality) */}
+        <div className="md:hidden flex items-center">
+          <button className="text-slate-600 p-2">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+          </button>
+        </div>
       </div>
     </header>
   );

@@ -1113,7 +1113,7 @@ function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
       )}
 
       <div className="mb-8">
-        <div className="bg-gray-900 rounded-2xl p-6 mb-5 relative overflow-hidden">
+        <div className="bg-blue-900 rounded-2xl p-6 mb-5 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-48 h-48 rounded-full bg-white/[0.03] -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-1/3 w-32 h-32 rounded-full bg-white/[0.03] translate-y-1/2" />
           <div className="relative flex items-start justify-between gap-4">
