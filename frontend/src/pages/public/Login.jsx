@@ -16,6 +16,46 @@ export default function Login() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const [showPw, setShowPw] = useState(false);
+
+  const togglePw = () => setShowPw((prev) => !prev);
+
+  const EyeIcon = ({ open }) =>
+    open ? (
+      <svg
+        className="w-4 h-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 3l18 18M10.58 10.58A3 3 0 0012 15a3 3 0 002.42-4.42M9.88 5.09A9.77 9.77 0 0112 4.5c5 0 9.27 3.11 11 7.5a13.15 13.15 0 01-4.22 5.56M6.1 6.1C3.87 7.64 2.24 9.85 1 12c1.73 4.39 6 7.5 11 7.5 1.05 0 2.07-.12 3.06-.34"
+        />
+      </svg>
+    ) : (
+      <svg
+        className="w-4 h-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M2.1 12C3.9 7.6 8 4.5 12 4.5S20.1 7.6 21.9 12C20.1 16.4 16 19.5 12 19.5S3.9 16.4 2.1 12z"
+        />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+        />
+      </svg>
+    );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -36,7 +76,6 @@ export default function Login() {
 
       const { roleType } = userRes.data;
 
-      // If login succeeds, user is approved — just route them
       login(userRes.data, jwt);
 
       if (roleType === "provider") navigate("/providerdashboard");
@@ -128,15 +167,35 @@ export default function Login() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
             </label>
-            <input
-              type="password"
-              name="password"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className="
+        w-full border border-gray-300
+        rounded-lg px-4 py-2 pr-10
+        focus:outline-none focus:ring-2 focus:ring-blue-500
+        transition
+        bg-white
+      "
+              />
+
+              <span
+                onClick={togglePw}
+                className="
+        absolute right-3 top-1/2 -translate-y-1/2
+        text-gray-400 hover:text-blue-500
+        cursor-pointer transition select-none
+      "
+              >
+                <EyeIcon open={showPw} />
+              </span>
+            </div>
           </div>
 
           <button

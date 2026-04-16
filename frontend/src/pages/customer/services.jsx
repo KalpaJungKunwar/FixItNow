@@ -501,10 +501,14 @@ function RequestFormModal({ onClose, onSuccess }) {
     setLocSource("map");
   };
 
-  const handleSubmit = async () => {
+const handleSubmit = async () => {
     setError("");
     if (!form.category || !form.title || !form.description || !form.location) {
       setError("Please fill all required fields.");
+      return;
+    }
+    if (form.suggested_budget && Number(form.suggested_budget) < 0) {
+      setError("Suggested budget cannot be negative.");
       return;
     }
     setLoading(true);
@@ -564,7 +568,6 @@ function RequestFormModal({ onClose, onSuccess }) {
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
-        {/* Header */}
         <div className="px-7 pt-6 pb-0 flex items-center justify-between">
           <div>
             <p className="text-xs text-gray-400 font-medium">
@@ -582,7 +585,6 @@ function RequestFormModal({ onClose, onSuccess }) {
           </button>
         </div>
 
-        {/* Progress bar */}
         <div className="px-7 mt-4">
           <div className="h-1 bg-gray-100 rounded-full">
             <div
@@ -593,7 +595,7 @@ function RequestFormModal({ onClose, onSuccess }) {
         </div>
 
         <div className="px-7 py-6">
-          {/* ── STEP 1 ── */}
+          
           {step === 1 && (
             <>
               <label className="block text-xs font-semibold text-gray-700 mb-2">
@@ -692,7 +694,6 @@ function RequestFormModal({ onClose, onSuccess }) {
             </>
           )}
 
-          {/* ── STEP 2 ── */}
           {step === 2 && (
             <>
               <label className="block text-xs font-semibold text-gray-700 mb-1.5">
@@ -705,7 +706,6 @@ function RequestFormModal({ onClose, onSuccess }) {
                 onChange={(e) => set("location", e.target.value)}
               />
 
-              {/* Location action buttons */}
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => {
@@ -784,7 +784,6 @@ function RequestFormModal({ onClose, onSuccess }) {
                 </button>
               </div>
 
-              {/* Map — shown when toggled OR after GPS capture */}
               {showMap && (
                 <div className="mb-3">
                   <MapPicker
@@ -821,7 +820,6 @@ function RequestFormModal({ onClose, onSuccess }) {
                 </div>
               )}
 
-              {/* Coordinate hint when map is hidden */}
               {!showMap && form.customer_lat && (
                 <p className="text-xs text-emerald-600 mb-3 flex items-center gap-1">
                   <CheckIcon className="w-3 h-3" />
@@ -903,7 +901,7 @@ function RequestFormModal({ onClose, onSuccess }) {
 }
 function DeleteConfirmModal({ onConfirm, onCancel, loading }) {
   return (
-    <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-sm p-7 shadow-2xl text-center">
         <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
           <TrashIcon className="w-6 h-6 text-red-500" />

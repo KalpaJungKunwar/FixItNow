@@ -8,39 +8,51 @@ export default function ChatBox({ requestId, currentUser }) {
   const socketRef = useSocket();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [fetchError, setFetchError] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
+        setFetchError(false);
         const res = await fetch(
           `${BASE_URL}/api/messages?filters[service_request][documentId][$eq]=${requestId}&populate[sender]=true&sort=createdAt:asc&pagination[limit]=100`,
-          { headers: { Authorization: `Bearer ${getToken()}` } },
+          {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          },
         );
         const data = await res.json();
+
         const history = (data.data || []).map((m) => ({
+          id: m.id,
           senderId: m.sender?.id,
-          senderName: m.sender_name,
-          message: m.msg,
+          senderName: m.sender_name || m.sender?.username,
+          message: m.msg || m.message,
           timestamp: m.createdAt,
         }));
+
         setMessages(history);
       } catch (err) {
         console.error("Failed to fetch chat history:", err);
+        setFetchError(true);
       }
     };
 
-    fetchHistory();
+    if (requestId) {
+      fetchHistory();
+    }
   }, [requestId]);
 
   useEffect(() => {
     const socket = socketRef.current;
+    if (!socket) return;
+
     socket.emit("join_room", requestId);
 
     const handleMessage = (msg) => {
-      if (msg.requestId === requestId) {
-        setMessages((prev) => [...prev, msg]);
-      }
+      if (msg.requestId !== requestId) return;
+      if (msg.senderId === currentUser.id) return;
+      setMessages((prev) => [...prev, msg]);
     };
 
     socket.on("receive_message", handleMessage);
@@ -49,35 +61,95 @@ export default function ChatBox({ requestId, currentUser }) {
       socket.off("receive_message", handleMessage);
       socket.emit("leave_room", requestId);
     };
-  }, [requestId]);
+  }, [requestId, socketRef, currentUser.id]);
+
+  
 
   const sendMessage = () => {
     if (!input.trim()) return;
-    socketRef.current.emit("send_message", {
+
+    const socket = socketRef.current;
+    if (!socket || !socket.connected) {
+      console.warn("Socket not connected");
+      return;
+    }
+
+    const newMessage = {
       requestId,
       senderId: currentUser.id,
       senderName: currentUser.username,
       message: input.trim(),
-    });
+      id: `local-${Date.now()}-${Math.random()}`,
+      timestamp: new Date().toISOString(),
+    };
+
+    socket.emit("send_message", newMessage);
+    setMessages((prev) => [...prev, newMessage]);
     setInput("");
   };
+
+  function formatDateLabel(date) {
+    const d = new Date(date);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const isToday = d.toDateString() === today.toDateString();
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+
+    if (isToday) return "Today";
+    if (isYesterday) return "Yesterday";
+
+    return d.toLocaleDateString([], {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  }
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-80">
       <div className="px-5 py-3 border-b border-gray-100">
         <h2 className="text-sm font-semibold text-gray-800">Messages</h2>
       </div>
+
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-        {messages.length === 0 && (
+        {fetchError && (
+          <p className="text-xs text-red-400 text-center mt-8">
+            Failed to load messages. Please try again.
+          </p>
+        )}
+
+        {!fetchError && messages.length === 0 && (
           <p className="text-xs text-gray-400 text-center mt-8">
             No messages yet. Say hello! 👋
           </p>
         )}
-        {messages.map((msg, i) => {
+
+        {messages.reduce((acc, msg, i) => {
+          const msgDate = new Date(msg.timestamp).toDateString();
+          const prevDate =
+            i > 0 ? new Date(messages[i - 1].timestamp).toDateString() : null;
+
+          const showDate = msgDate !== prevDate;
+
+          if (showDate) {
+            acc.push(
+              <div key={`date-${i}`} className="flex items-center gap-2 my-1">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {formatDateLabel(msg.timestamp)}
+                </span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>,
+            );
+          }
+
           const isMe = msg.senderId === currentUser.id;
-          return (
+
+          acc.push(
             <div
-              key={i}
+              key={msg.id}
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
               <div
@@ -90,9 +162,13 @@ export default function ChatBox({ requestId, currentUser }) {
                     {msg.senderName}
                   </p>
                 )}
+
                 <p>{msg.message}</p>
+
                 <p
-                  className={`text-xs mt-1 ${isMe ? "text-blue-200" : "text-gray-400"}`}
+                  className={`text-xs mt-1 ${
+                    isMe ? "text-blue-200" : "text-gray-400"
+                  }`}
                 >
                   {new Date(msg.timestamp).toLocaleTimeString([], {
                     hour: "2-digit",
@@ -100,11 +176,15 @@ export default function ChatBox({ requestId, currentUser }) {
                   })}
                 </p>
               </div>
-            </div>
+            </div>,
           );
-        })}
+
+          return acc;
+        }, [])}
+
         <div ref={bottomRef} />
       </div>
+
       <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
         <input
           value={input}
@@ -113,9 +193,11 @@ export default function ChatBox({ requestId, currentUser }) {
           placeholder="Type a message..."
           className="flex-1 text-sm px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
         />
+
         <button
           onClick={sendMessage}
-          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-xl transition"
+          disabled={!input.trim()}
+          className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white text-sm font-medium rounded-xl transition"
         >
           Send
         </button>

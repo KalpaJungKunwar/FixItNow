@@ -20,6 +20,42 @@ const AVATAR_COLORS = [
   "from-pink-400 to-pink-600",
 ];
 
+const EyeIcon = ({ open }) =>
+  open ? (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 3l18 18M10.58 10.58A3 3 0 0012 15a3 3 0 002.42-4.42M9.88 5.09A9.77 9.77 0 0112 4.5c5 0 9.27 3.11 11 7.5a13.15 13.15 0 01-4.22 5.56M6.1 6.1C3.87 7.64 2.24 9.85 1 12c1.73 4.39 6 7.5 11 7.5 1.05 0 2.07-.12 3.06-.34"
+      />
+    </svg>
+  ) : (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.1 12C3.9 7.6 8 4.5 12 4.5S20.1 7.6 21.9 12C20.1 16.4 16 19.5 12 19.5S3.9 16.4 2.1 12z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+      />
+    </svg>
+  );
+
 function avatarColor(str) {
   if (!str) return AVATAR_COLORS[0];
   let hash = 0;
@@ -151,6 +187,14 @@ export default function CustomerProfile() {
     setSaving(true);
     setSaveError("");
     setSaveSuccess(false);
+
+    // ✅ Frontend validation (prevents Strapi 500)
+    if (!username || username.trim() === "") {
+      setSaveError("Username cannot be empty");
+      setSaving(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${BASE_URL}/api/users/${user.id}`, {
         method: "PUT",
@@ -158,20 +202,43 @@ export default function CustomerProfile() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ username, email }),
+        body: JSON.stringify({
+          username: username.trim(),
+          email: email?.trim(),
+        }),
       });
+
       if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e?.error?.message || "Update failed");
+        let errorMessage = "Update failed";
+
+        try {
+          const e = await res.json();
+
+          if (e?.error?.details?.errors?.length > 0) {
+            errorMessage = e.error.details.errors
+              .map((err) => err.message)
+              .join(", ");
+          } else if (e?.error?.message) {
+            errorMessage = e.error.message;
+          }
+        } catch {
+          errorMessage = "Internal server error";
+        }
+
+        throw new Error(errorMessage);
       }
+
       const updated = await res.json();
+
       const updatedUser = {
         ...user,
         username: updated.username,
         email: updated.email,
       };
+
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
+
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (e) {
@@ -185,7 +252,7 @@ export default function CustomerProfile() {
     setPwError("");
     setPwSuccess(false);
     if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
-      setPwError("All fields are required.");
+      setPwError("Please fill in all password fields.");
       return;
     }
     if (pwForm.next !== pwForm.confirm) {
@@ -224,6 +291,15 @@ export default function CustomerProfile() {
     }
   };
 
+  const [showPw, setShowPw] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
+
+  const togglePw = (field) => {
+    setShowPw((prev) => ({ ...prev, [field]: !prev[field] }));
+  };
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -391,38 +467,94 @@ export default function CustomerProfile() {
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                 Current Password
               </label>
-              <input
-                type="password"
-                value={pwForm.current}
-                onChange={(e) => setPw("current", e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
-                placeholder="password"
-              />
+              <div className="relative">
+                <input
+                  type={showPw.current ? "text" : "password"}
+                  value={pwForm.current}
+                  onChange={(e) => setPw("current", e.target.value)}
+                  className="     w-full
+      border border-gray-200
+      rounded-xl
+      px-4 py-2.5 pr-10
+      text-sm
+      bg-white/70 backdrop-blur-md
+      shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-blue-400
+      transition
+ 
+    "
+                  placeholder="password"
+                />
+
+                <span
+                  onClick={() => togglePw("current")}
+                  className="
+      absolute right-3 top-1/2 -translate-y-1/2
+      text-gray-400
+      hover:text-blue-500
+      cursor-pointer
+      transition
+      select-none
+    "
+                >
+                  <EyeIcon open={showPw.current} />
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                   New Password
                 </label>
-                <input
-                  type="password"
-                  value={pwForm.next}
-                  onChange={(e) => setPw("next", e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
-                  placeholder="password"
-                />
+                <div className="relative">
+                  <input
+                    type={showPw.next ? "text" : "password"}
+                    value={pwForm.next}
+                    onChange={(e) => setPw("next", e.target.value)}
+                    className="
+      w-full border border-gray-200 rounded-xl
+      px-4 py-2.5 pr-10
+      text-sm bg-white/70 backdrop-blur-md shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-blue-400
+      transition
+    "
+                    placeholder="password"
+                  />
+
+                  <span
+                    onClick={() => togglePw("next")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+                  >
+                    <EyeIcon open={showPw.next} />
+                  </span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                   Confirm New Password
                 </label>
-                <input
-                  type="password"
-                  value={pwForm.confirm}
-                  onChange={(e) => setPw("confirm", e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50"
-                  placeholder="password"
-                />
+                <div className="relative">
+                  <input
+                    type={showPw.confirm ? "text" : "password"}
+                    value={pwForm.confirm}
+                    onChange={(e) => setPw("confirm", e.target.value)}
+                    className="
+      w-full border border-gray-200 rounded-xl
+      px-4 py-2.5 pr-10
+      text-sm bg-white/70 backdrop-blur-md shadow-sm
+      focus:outline-none focus:ring-2 focus:ring-blue-400
+      transition
+    "
+                    placeholder="password"
+                  />
+
+                  <span
+                    onClick={() => togglePw("confirm")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+                  >
+                    <EyeIcon open={showPw.confirm} />
+                  </span>
+                </div>
               </div>
             </div>
           </div>

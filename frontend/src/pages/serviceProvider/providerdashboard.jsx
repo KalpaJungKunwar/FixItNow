@@ -266,6 +266,42 @@ const ShieldCheckIcon = ({ className }) => (
   </svg>
 );
 
+const EyeIcon = ({ open }) =>
+  open ? (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 3l18 18M10.58 10.58A3 3 0 0012 15a3 3 0 002.42-4.42M9.88 5.09A9.77 9.77 0 0112 4.5c5 0 9.27 3.11 11 7.5a13.15 13.15 0 01-4.22 5.56M6.1 6.1C3.87 7.64 2.24 9.85 1 12c1.73 4.39 6 7.5 11 7.5 1.05 0 2.07-.12 3.06-.34"
+      />
+    </svg>
+  ) : (
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.1 12C3.9 7.6 8 4.5 12 4.5S20.1 7.6 21.9 12C20.1 16.4 16 19.5 12 19.5S3.9 16.4 2.1 12z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+      />
+    </svg>
+  );
+
 const SPECIALTIES = [
   { value: "plumbing", label: "Plumbing", Icon: WrenchIcon },
   { value: "electrical", label: "Electrical", Icon: BoltIcon },
@@ -1589,6 +1625,16 @@ function PwChangeForm() {
   const [pwError, setPwError] = useState("");
   const setPw = (k, v) => setPwForm((f) => ({ ...f, [k]: v }));
 
+  const [showPw, setShowPw] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
+
+  const togglePw = (field) => {
+    setShowPw((p) => ({ ...p, [field]: !p[field] }));
+  };
+
   const handlePasswordChange = async () => {
     setPwError("");
     setPwSuccess(false);
@@ -1638,38 +1684,86 @@ function PwChangeForm() {
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">
           Current Password
         </label>
-        <input
-          type="password"
-          value={pwForm.current}
-          onChange={(e) => setPw("current", e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
-          placeholder="password"
-        />
+
+        <div className="relative">
+          <input
+            type={showPw.current ? "text" : "password"}
+            value={pwForm.current}
+            onChange={(e) => setPw("current", e.target.value)}
+            className="
+        w-full border border-gray-200 rounded-xl
+        px-4 py-2.5 pr-10 text-sm
+        bg-gray-50
+        focus:outline-none focus:ring-2 focus:ring-blue-400
+        transition
+      "
+            placeholder="password"
+          />
+
+          <span
+            onClick={() => togglePw("current")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+          >
+            <EyeIcon open={showPw.current} />
+          </span>
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">
             New Password
           </label>
-          <input
-            type="password"
-            value={pwForm.next}
-            onChange={(e) => setPw("next", e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
-            placeholder="password"
-          />
+
+          <div className="relative">
+            <input
+              type={showPw.next ? "text" : "password"}
+              value={pwForm.next}
+              onChange={(e) => setPw("next", e.target.value)}
+              className="
+        w-full border border-gray-200 rounded-xl
+        px-4 py-2.5 pr-10 text-sm
+        bg-gray-50
+        focus:outline-none focus:ring-2 focus:ring-blue-400
+        transition
+      "
+              placeholder="password"
+            />
+
+            <span
+              onClick={() => togglePw("next")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+            >
+              <EyeIcon open={showPw.next} />
+            </span>
+          </div>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1.5">
             Confirm New Password
           </label>
-          <input
-            type="password"
-            value={pwForm.confirm}
-            onChange={(e) => setPw("confirm", e.target.value)}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 placeholder-gray-400"
-            placeholder="password"
-          />
+
+          <div className="relative">
+            <input
+              type={showPw.confirm ? "text" : "password"}
+              value={pwForm.confirm}
+              onChange={(e) => setPw("confirm", e.target.value)}
+              className="
+        w-full border border-gray-200 rounded-xl
+        px-4 py-2.5 pr-10 text-sm
+        bg-gray-50
+        focus:outline-none focus:ring-2 focus:ring-blue-400
+        transition
+      "
+              placeholder="password"
+            />
+
+            <span
+              onClick={() => togglePw("confirm")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+            >
+              <EyeIcon open={showPw.confirm} />
+            </span>
+          </div>
         </div>
       </div>
       {pwError && (
