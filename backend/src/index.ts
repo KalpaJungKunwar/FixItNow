@@ -14,31 +14,53 @@ export default {
   register({ strapi }: { strapi: Core.Strapi }) {
     const usersPermissionsPlugin = strapi.plugin('users-permissions');
     const originalRegister = usersPermissionsPlugin.controller('auth').register;
+    const originalCallback = usersPermissionsPlugin.controller('auth').callback;
+
+    usersPermissionsPlugin.controller('auth').callback = async function (ctx: any) {
+      try {
+        await originalCallback.call(this, ctx);
+      } catch (err: any) {
+        ctx.status = 400;
+        ctx.body = {
+          error: {
+            status: 400,
+            name: 'ValidationError',
+            message: err.message || 'Invalid Username or password.',
+          },
+        };
+      }
+    };
 
     usersPermissionsPlugin.controller('auth').register = async function (ctx: any) {
-      // Read roleType before anything strips it
       const roleType = ctx.request.body?.roleType || 'customer';
 
-      // Remove roleType so Strapi's register doesn't fail on unknown field
       if (ctx.request.body) {
         delete ctx.request.body.roleType;
       }
 
-      // Call Strapi's original register
-      await originalRegister.call(this, ctx);
+      try {
+        await originalRegister.call(this, ctx);
+      } catch (err: any) {
+        ctx.status = 400;
+        ctx.body = {
+          error: {
+            status: 400,
+            name: 'ValidationError',
+            message: err.message || 'Registration failed.',
+          },
+        };
+        return;
+      }
 
-      // Only proceed if registration succeeded
-      if (ctx.response.status === 200 && ctx.response.body?.user?.id) {
-        const userId = ctx.response.body.user.id;
+      if (ctx.status === 200 && ctx.body?.user?.id) {
+        const userId = ctx.body.user.id;
         const knex = (strapi as any).db.connection;
 
         try {
-          // Find correct role
           const role = await strapi
             .query('plugin::users-permissions.role')
             .findOne({ where: { type: roleType } });
 
-          // Raw DB update — bypasses all Strapi hooks and services
           await knex('up_users')
             .where({ id: userId })
             .update({
@@ -54,8 +76,7 @@ export default {
           console.error('[register] Failed to update user after registration:', err);
         }
 
-        // Nullify JWT so they can't use the token
-        ctx.response.body.jwt = null;
+        ctx.body.jwt = null;
       }
     };
   },

@@ -34,27 +34,32 @@ export default function Login() {
         { headers: { Authorization: `Bearer ${jwt}` } },
       );
 
+      const { approval_status, roleType } = userRes.data;
+
+      if (approval_status === "pending") {
+        setError(
+          "⏳ Your account is pending admin approval. Please check back in 24–48 hours.",
+        );
+        return;
+      }
+      if (approval_status === "rejected") {
+        setError(
+          "❌ Your account has been rejected. Please contact support at support@fixitnow.com.",
+        );
+        return;
+      }
+
       login(userRes.data, jwt);
 
-      const roleType = userRes.data.roleType;
       if (roleType === "provider") navigate("/providerdashboard");
       else if (roleType === "admin") navigate("/admin");
       else navigate("/");
     } catch (err) {
       const msg =
-        err.response?.data?.error?.message || "Invalid email or password.";
-
-      if (msg.toLowerCase().includes("pending")) {
-        setError(
-          "⏳ Your account is pending admin approval. Please check back in 24–48 hours.",
-        );
-      } else if (msg.toLowerCase().includes("rejected")) {
-        setError(
-          "❌ Your account has been rejected. Please contact support at support@fixitnow.com.",
-        );
-      } else {
-        setError(msg);
-      }
+        err.response?.data?.error?.message === "Invalid identifier or password"
+          ? "Invalid email or password."
+          : err.response?.data?.error?.message || "Invalid email or password.";
+      setError(msg);
     } finally {
       setLoading(false);
     }

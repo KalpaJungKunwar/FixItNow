@@ -255,6 +255,10 @@ const statusConfig = {
     label: "In Progress",
     cls: "bg-amber-50 text-amber-600 border-amber-100",
   },
+  completed: {
+    label: "Completed",
+    cls: "bg-green-50 text-green-600 border-green-100",
+  },
   accepted: {
     label: "Accepted",
     cls: "bg-emerald-50 text-emerald-600 border-emerald-100",
