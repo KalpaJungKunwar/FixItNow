@@ -118,8 +118,8 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-        <h2 className="text-3xl font-bold text-gray-800 mb-1">
+      <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md  select-none">
+        <h2 className="text-3xl font-bold text-gray-800 mb-1 select-none">
           Create Account
         </h2>
         <p className="text-gray-500 text-sm mb-6">
@@ -132,7 +132,7 @@ export default function Register() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 select-none">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               I am a...
@@ -151,7 +151,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 select-none">
               Full Name
             </label>
             <input
@@ -166,7 +166,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 select-none">
               Email Address
             </label>
             <input
@@ -181,7 +181,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 select-none">
               Password
             </label>
 

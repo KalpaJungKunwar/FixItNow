@@ -1508,7 +1508,7 @@ function SubscriptionsTab({ token }) {
   );
 }
 
-function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
+export function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("profile");
@@ -1521,7 +1521,12 @@ function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
-      .then(setDetail)
+      .then((d) => {
+        setDetail(d);
+        if (d?.user?.blocked !== undefined) {
+          setLocalBlocked(d.user.blocked);
+        }
+      })
       .catch(console.error)
       .finally(() => setDetailLoading(false));
   }, [user]);
