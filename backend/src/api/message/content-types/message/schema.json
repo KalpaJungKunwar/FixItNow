@@ -23,6 +23,10 @@
       "type": "relation",
       "relation": "oneToOne",
       "target": "api::service-request.service-request"
+    },
+    "read": {
+      "type": "boolean",
+      "default": false
     }
   }
 }

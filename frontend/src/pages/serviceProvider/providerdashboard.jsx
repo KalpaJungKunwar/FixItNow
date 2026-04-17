@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ChatBox from "../../components/ChatBox";
 
 const API_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
@@ -265,7 +265,6 @@ const ShieldCheckIcon = ({ className }) => (
     />
   </svg>
 );
-
 const EyeIcon = ({ open }) =>
   open ? (
     <svg
@@ -346,21 +345,18 @@ function avatarColor(str) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
-
 function extractPhotos(attrs) {
   const raw = attrs?.photos;
   if (!raw) return [];
   if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.data)) {
+  if (Array.isArray(raw?.data))
     return raw.data.map((f) => ({ ...a(f), id: f.id }));
-  }
   return [];
 }
 
 function PhotoStrip({ photos, className = "" }) {
   const [lightbox, setLightbox] = useState(null);
   if (!photos || photos.length === 0) return null;
-
   return (
     <>
       <div className={`flex gap-2 flex-wrap ${className}`}>
@@ -392,7 +388,6 @@ function PhotoStrip({ photos, className = "" }) {
           })
           .slice(0, 3)}
       </div>
-
       {lightbox && (
         <div
           className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
@@ -418,6 +413,38 @@ function PhotoStrip({ photos, className = "" }) {
       )}
     </>
   );
+}
+
+function useUnreadMessages(requestIds, currentUserId) {
+  const [unreadMap, setUnreadMap] = useState({});
+  useEffect(() => {
+    if (!requestIds.length || !currentUserId) return;
+    const fetchUnread = async () => {
+      const results = {};
+      await Promise.all(
+        requestIds.map(async (docId) => {
+          try {
+            const res = await fetch(
+              `${API_URL}/api/messages?` +
+                `filters[service_request][documentId][$eq]=${docId}` +
+                `&filters[sender][id][$ne]=${currentUserId}` +
+                `&filters[read][$eq]=false` +
+                `&pagination[limit]=1&fields[0]=id`,
+              { headers: { Authorization: `Bearer ${getToken()}` } },
+            );
+            const data = await res.json();
+            const count = data?.meta?.pagination?.total ?? 0;
+            if (count > 0) results[docId] = count;
+          } catch (_) {}
+        }),
+      );
+      setUnreadMap(results);
+    };
+    fetchUnread();
+    const id = setInterval(fetchUnread, 60_000);
+    return () => clearInterval(id);
+  }, [requestIds.join(","), currentUserId]);
+  return unreadMap;
 }
 
 function LocationMapModal({ lat, lng, title, onClose }) {
@@ -521,6 +548,7 @@ function LocationMapModal({ lat, lng, title, onClose }) {
     </div>
   );
 }
+
 function PhotoModal({ photos, onClose }) {
   const [current, setCurrent] = useState(0);
   return (
@@ -600,7 +628,7 @@ function PhotoModal({ photos, onClose }) {
   );
 }
 
-function Sidebar({ active, setActive, user, profile }) {
+function Sidebar({ active, setActive, user, profile, unreadCount = 0 }) {
   const navigate = useNavigate();
   const { logout } = useAuth();
   const username = user?.username || "Provider";
@@ -631,12 +659,17 @@ function Sidebar({ active, setActive, user, profile }) {
             className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${active === id ? "bg-blue-500/15 text-blue-400 border-l-2 border-blue-500" : "text-white/40 hover:text-white/70 hover:bg-white/5 border-l-2 border-transparent"}`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
-            {label}
+            <span className="flex-1">{label}</span>
+            {id === "bids" && unreadCount > 0 && (
+              <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
         ))}
       </nav>
       <div className="px-3 py-4 border-t border-white/5 space-y-3">
-        {profile?.rating && (
+        {profile?.rating > 0 && (
           <div className="flex items-center gap-2 bg-amber-500/10 rounded-lg px-3 py-2">
             <StarIcon className="w-3.5 h-3.5 text-amber-400" filled />
             <span className="text-xs font-bold text-amber-400">
@@ -698,7 +731,8 @@ function EmptyState({ Icon, title, sub }) {
     </div>
   );
 }
-function RequestCard({ request, myBids, onBid, compact }) {
+
+function RequestCard({ request, myBids, onBid, compact, subStatus }) {
   const attrs = a(request);
   const customer = attrs.customer?.data
     ? a(attrs.customer.data)
@@ -717,6 +751,8 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const photos = extractPhotos(attrs);
   const [showPhotos, setShowPhotos] = useState(false);
   const alreadyBid = myBids.some((b) => {
+    const bidStatus = b?.bid_status ?? b?.attributes?.bid_status;
+    if (bidStatus === "rejected") return false;
     const sr = b?.service_request ?? b?.attributes?.service_request;
     const rid = sr?.data?.id ?? sr?.id ?? sr?.data?.attributes?.id;
     const rDocId =
@@ -729,9 +765,7 @@ function RequestCard({ request, myBids, onBid, compact }) {
         rDocId === (request.documentId ?? request.attributes?.documentId))
     );
   });
-  const [bidAmount, setBidAmount] = useState(
-    attrs.suggested_budget ? Math.round(attrs.suggested_budget * 0.92) : "",
-  );
+  const [bidAmount, setBidAmount] = useState("");
   const [bidMsg, setBidMsg] = useState("");
   const [bidAvail, setBidAvail] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -740,11 +774,19 @@ function RequestCard({ request, myBids, onBid, compact }) {
   const [error, setError] = useState("");
   const [showMap, setShowMap] = useState(false);
 
+  const isSubExpired =
+    subStatus?.subscriptionStatus === "expired" ||
+    subStatus?.subscriptionStatus === "failed";
+
   useEffect(() => {
     if (alreadyBid) setSent(true);
   }, [alreadyBid]);
 
   const handleBid = async () => {
+    if (isSubExpired) {
+      setError("Your subscription has expired. Please renew to place bids.");
+      return;
+    }
     if (!bidAmount) {
       setError("Bid amount is required.");
       return;
@@ -774,7 +816,8 @@ function RequestCard({ request, myBids, onBid, compact }) {
             message: bidMsg,
             availability: bidAvail,
             bid_status: "pending",
-            service_request: attrs.documentId || request.documentId,
+            service_request:
+              request.documentId ?? request.attributes?.documentId,
             provider: user?.id,
           },
         }),
@@ -835,7 +878,6 @@ function RequestCard({ request, myBids, onBid, compact }) {
             </div>
           </>
         )}
-
         <div className="p-5">
           <div className="flex items-start gap-3">
             {picUrl ? (
@@ -907,10 +949,15 @@ function RequestCard({ request, myBids, onBid, compact }) {
                 )}
               </div>
             </div>
+
             <div className="flex-shrink-0">
               {sent ? (
                 <span className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                   <CheckIcon className="w-3 h-3" /> Bid Sent
+                </span>
+              ) : isSubExpired ? (
+                <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
+                  ⚠ Subscription Expired
                 </span>
               ) : compact ? (
                 <button
@@ -953,7 +1000,7 @@ function RequestCard({ request, myBids, onBid, compact }) {
           </div>
         </div>
 
-        {expanded && !sent && (
+        {expanded && !sent && !isSubExpired && (
           <div className="border-t border-gray-100 bg-gray-50 px-5 py-4">
             <div className="grid grid-cols-3 gap-3 mb-3">
               <div>
@@ -1027,6 +1074,25 @@ function RequestCard({ request, myBids, onBid, compact }) {
             </div>
           </div>
         )}
+
+        {expanded && !sent && isSubExpired && (
+          <div className="border-t border-amber-100 bg-amber-50 px-5 py-4">
+            <p className="text-xs text-amber-700 font-semibold mb-2">
+              ⚠ Your subscription has expired.
+            </p>
+            <p className="text-xs text-amber-600 mb-3">
+              Renew your subscription to start placing bids again.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setExpanded(false)}
+                className="border border-amber-200 text-amber-700 text-xs font-semibold px-4 py-2 rounded-lg hover:bg-amber-100 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -1040,6 +1106,11 @@ function DashboardTab({
   onNavigate,
   payments,
   onBid,
+  unreadMap,
+  onGoToChat,
+  subStatus,
+  onSubscribe,
+  subInitiating,
 }) {
   const paidServiceRequestIds = new Set(
     payments
@@ -1056,6 +1127,18 @@ function DashboardTab({
     .reduce((s, b) => s + (a(b).amount || 0), 0);
   const activeBids = myBids.filter((b) => a(b).bid_status === "pending").length;
   const username = user?.username || "Provider";
+  const totalUnread = Object.values(unreadMap).reduce((s, n) => s + n, 0);
+  const unreadBidCount = Object.keys(unreadMap).length;
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const prevTotalRef = useRef(totalUnread);
+  const isSubExpired =
+    subStatus?.subscriptionStatus === "expired" ||
+    subStatus?.subscriptionStatus === "failed";
+
+  useEffect(() => {
+    if (totalUnread > prevTotalRef.current) setBannerDismissed(false);
+    prevTotalRef.current = totalUnread;
+  }, [totalUnread]);
 
   return (
     <div>
@@ -1065,7 +1148,7 @@ function DashboardTab({
             Overview
           </p>
           <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-            Welcome back, {username.split(" ")[0]}
+            Welcome, {username.split(" ")[0]}
           </h1>
           <p className="text-sm text-gray-400 mt-1">
             {nearbyRequests.length > 0
@@ -1078,6 +1161,80 @@ function DashboardTab({
           Online
         </span>
       </div>
+
+      {isSubExpired && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 mb-6">
+          <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800">
+              Your subscription has expired
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              You can view your dashboard but cannot place new bids until you
+              renew.
+            </p>
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <button
+              onClick={() => onSubscribe("monthly")}
+              disabled={subInitiating}
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-70 text-white text-xs font-bold rounded-xl transition-colors"
+            >
+              {subInitiating ? "..." : "Monthly — Rs. 299"}
+            </button>
+            <button
+              onClick={() => onSubscribe("yearly")}
+              disabled={subInitiating}
+              className="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 disabled:opacity-70 text-white text-xs font-bold rounded-xl transition-colors"
+            >
+              {subInitiating ? "..." : "Yearly — Rs. 2000"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {totalUnread > 0 && !bannerDismissed && (
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3 mb-6">
+          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse flex-shrink-0" />
+          <p className="text-sm text-blue-700 flex-1">
+            You have{" "}
+            <span className="font-semibold">
+              {totalUnread} unread message{totalUnread !== 1 ? "s" : ""}
+            </span>{" "}
+            across{" "}
+            <span className="font-semibold">
+              {unreadBidCount} job{unreadBidCount !== 1 ? "s" : ""}
+            </span>
+          </p>
+          <button
+            onClick={onGoToChat}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-colors flex-shrink-0"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            View Messages
+          </button>
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="text-blue-400 hover:text-blue-700 text-xl leading-none transition font-medium flex-shrink-0"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-4 mb-8 flex-wrap">
         <StatCard
           label="Total Earned"
@@ -1093,15 +1250,11 @@ function DashboardTab({
           accent="text-amber-500"
         />
       </div>
+
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500 mb-0.5">
-            Nearby
-          </p>
-          <h2 className="text-lg font-bold text-gray-900">
-            New Service Requests
-          </h2>
-        </div>
+        <h2 className="text-lg font-bold text-gray-900">
+          New Service Requests
+        </h2>
         <button
           onClick={() => onNavigate("requests")}
           className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
@@ -1124,6 +1277,7 @@ function DashboardTab({
               myBids={myBids}
               onBid={onBid}
               compact
+              subStatus={subStatus}
             />
           ))}
         </div>
@@ -1132,10 +1286,9 @@ function DashboardTab({
   );
 }
 
-function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
+function FindRequestsTab({ requests, myBids, profile, onBidSent, subStatus }) {
   const [filter, setFilter] = useState("all");
   const specialty = profile?.specialty;
-
   const biddedRequestIds = new Set(
     myBids
       .map((b) => {
@@ -1144,14 +1297,12 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
       })
       .filter(Boolean),
   );
-
   const getBidCount = (req) => {
     const bids = req.bids;
     if (!bids) return 0;
     if (Array.isArray(bids)) return bids.length;
     return 0;
   };
-
   const filtered = requests.filter((req) => {
     if (filter === "mine") return req.category === specialty;
     if (filter === "no_bids") {
@@ -1160,7 +1311,6 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
     }
     return true;
   });
-
   const filters = [
     { val: "all", label: "All Requests" },
     {
@@ -1169,7 +1319,6 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
     },
     { val: "no_bids", label: "No Bids Yet" },
   ];
-
   return (
     <div>
       <div className="flex items-start justify-between mb-6">
@@ -1189,11 +1338,7 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
             <button
               key={f.val}
               onClick={() => setFilter(f.val)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                filter === f.val
-                  ? "bg-blue-500 text-white border-blue-500"
-                  : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
-              }`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${filter === f.val ? "bg-blue-500 text-white border-blue-500" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
             >
               {f.label}
             </button>
@@ -1214,6 +1359,7 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
               request={req}
               myBids={myBids}
               onBid={onBidSent}
+              subStatus={subStatus}
             />
           ))}
         </div>
@@ -1223,6 +1369,61 @@ function FindRequestsTab({ requests, myBids, profile, onBidSent }) {
 }
 
 const BIDS_PER_PAGE = 3;
+
+function ConfirmModal({
+  title,
+  message,
+  confirmLabel = "Confirm",
+  onConfirm,
+  onCancel,
+  danger = false,
+}) {
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+        <div className="px-6 pt-6 pb-4">
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${danger ? "bg-red-50" : "bg-blue-50"}`}
+          >
+            {danger ? (
+              <svg
+                className="w-5 h-5 text-red-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                />
+              </svg>
+            ) : (
+              <CheckIcon className="w-5 h-5 text-blue-500" />
+            )}
+          </div>
+          <h3 className="text-base font-bold text-gray-900 mb-1">{title}</h3>
+          <p className="text-sm text-gray-500 leading-relaxed">{message}</p>
+        </div>
+        <div className="px-6 pb-6 flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`px-4 py-2 text-sm font-semibold text-white rounded-xl transition-colors ${danger ? "bg-red-500 hover:bg-red-600" : "bg-emerald-500 hover:bg-emerald-600"}`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function BidPhotoToggle({ photos }) {
   const [showModal, setShowModal] = useState(false);
@@ -1255,13 +1456,19 @@ function BidPhotoToggle({ photos }) {
     </>
   );
 }
-function MyBidsTab({ providerId, payments }) {
+
+function MyBidsTab({ providerId, payments, openChatDocId }) {
   const [bids, setBids] = useState([]);
   const [loading, setLoading] = useState(true);
   const [mapModal, setMapModal] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [openChatId, setOpenChatId] = useState(null);
+  const [openChatId, setOpenChatId] = useState(openChatDocId ?? null);
+  const [confirmModal, setConfirmModal] = useState(null);
   const watchIds = useRef({});
+
+  useEffect(() => {
+    if (openChatDocId) setOpenChatId(openChatDocId);
+  }, [openChatDocId]);
 
   const paymentByRequestId = {};
   payments.forEach((p) => {
@@ -1325,13 +1532,20 @@ function MyBidsTab({ providerId, payments }) {
     }
   };
 
-  const markCompleted = async (requestDocumentId) => {
-    if (
-      !window.confirm(
-        "Mark this job as done? The customer will need to confirm.",
-      )
-    )
-      return;
+  const markCompleted = (requestDocumentId) => {
+    setConfirmModal({
+      requestDocumentId,
+      title: "Mark Job as Done?",
+      message:
+        "The customer will be notified to confirm job completion before payment is released.",
+      confirmLabel: "Yes, Mark Done",
+      danger: false,
+    });
+  };
+
+  const handleConfirmComplete = async () => {
+    const { requestDocumentId } = confirmModal;
+    setConfirmModal(null);
     try {
       await fetch(`${API_URL}/api/service-requests/${requestDocumentId}`, {
         method: "PUT",
@@ -1365,6 +1579,16 @@ function MyBidsTab({ providerId, payments }) {
           lng={mapModal.lng}
           title={mapModal.title}
           onClose={() => setMapModal(null)}
+        />
+      )}
+      {confirmModal && (
+        <ConfirmModal
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmLabel={confirmModal.confirmLabel}
+          danger={confirmModal.danger}
+          onConfirm={handleConfirmComplete}
+          onCancel={() => setConfirmModal(null)}
         />
       )}
       <div className="mb-6">
@@ -1406,7 +1630,6 @@ function MyBidsTab({ providerId, payments }) {
                     ? paymentByRequestId[reqDocumentId]
                     : null;
                   const paymentStatus = payment?.paymentStatus ?? null;
-
                   const bidStatusStyle = {
                     pending: "bg-yellow-100 text-yellow-700",
                     accepted: "bg-emerald-100 text-emerald-700",
@@ -1433,7 +1656,6 @@ function MyBidsTab({ providerId, payments }) {
                       {srPhotos.length > 0 && (
                         <BidPhotoToggle photos={srPhotos} />
                       )}
-
                       <div className="p-5">
                         <div className="flex justify-between items-start mb-3">
                           <div>
@@ -1522,32 +1744,65 @@ function MyBidsTab({ providerId, payments }) {
                                 onClick={() =>
                                   startSharingLocation(reqDocumentId)
                                 }
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-400 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition"
+                                className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-xs font-semibold rounded-xl border border-gray-700 transition-colors"
                               >
-                                Share My Location
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"
+                                  />
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+                                  />
+                                </svg>
+                                Share Location
                               </button>
                             ) : (
                               <button
                                 onClick={() =>
                                   stopSharingLocation(reqDocumentId)
                                 }
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white text-sm font-semibold rounded-xl hover:bg-gray-600 transition"
+                                className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-xl border border-gray-300 transition-colors"
                               >
-                                ⏹ Stop Sharing
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                Stop Sharing
                               </button>
                             )}
                             <button
                               onClick={() => markCompleted(reqDocumentId)}
-                              className="flex items-center gap-2 px-4 py-2 bg-emerald-400 text-white text-sm font-semibold rounded-xl hover:bg-emerald-700 transition"
+                              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition-colors"
                             >
+                              <CheckIcon className="w-3.5 h-3.5" />
                               Mark Completed
                             </button>
                             <button
                               onClick={() =>
                                 setOpenChatId(isChatOpen ? null : reqDocumentId)
                               }
-                              className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-xl transition ${isChatOpen ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-violet-400 text-white hover:bg-violet-500"}`}
+                              className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${isChatOpen ? "bg-white text-gray-700 border-gray-300 hover:bg-gray-50" : "bg-blue-600 hover:bg-blue-700 text-white border-blue-600"}`}
                             >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+                                />
+                              </svg>
                               {isChatOpen ? "Close Chat" : "Message Customer"}
                             </button>
                           </div>
@@ -1618,171 +1873,243 @@ function MyBidsTab({ providerId, payments }) {
   );
 }
 
-function PwChangeForm() {
-  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
-  const [pwSaving, setPwSaving] = useState(false);
-  const [pwSuccess, setPwSuccess] = useState(false);
-  const [pwError, setPwError] = useState("");
-  const setPw = (k, v) => setPwForm((f) => ({ ...f, [k]: v }));
+function SubscriptionPaywall({ onSubscribe, loading }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-md w-full shadow-lg text-center">
+        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ShieldCheckIcon className="w-7 h-7 text-blue-500" />
+        </div>
+        <h2 className="text-xl font-extrabold text-gray-900 mb-2">
+          Activate Your Provider Account
+        </h2>
+        <p className="text-sm text-gray-500 mb-6">
+          A subscription is required to access the provider dashboard and
+          receive job bids.
+        </p>
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={() => onSubscribe("monthly")}
+            disabled={loading}
+            className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+          >
+            {loading ? "..." : "Monthly — Rs. 299"}
+          </button>
+          <button
+            onClick={() => onSubscribe("yearly")}
+            disabled={loading}
+            className="flex-1 bg-gray-900 hover:bg-gray-800 disabled:opacity-70 text-white font-bold py-3 rounded-xl text-sm transition-colors"
+          >
+            {loading ? "..." : "Yearly — Rs. 2000"}
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          Payments processed securely via Khalti
+        </p>
+      </div>
+    </div>
+  );
+}
 
-  const [showPw, setShowPw] = useState({
-    current: false,
-    next: false,
-    confirm: false,
-  });
+function ReviewsTab({ providerId, onRatingComputed }) {
+  const [reviews, setReviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ avg: 0, total: 0, breakdown: {} });
 
-  const togglePw = (field) => {
-    setShowPw((p) => ({ ...p, [field]: !p[field] }));
-  };
+  useEffect(() => {
+    fetchReviews();
+  }, []);
 
-  const handlePasswordChange = async () => {
-    setPwError("");
-    setPwSuccess(false);
-    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
-      setPwError("All fields are required.");
-      return;
-    }
-    if (pwForm.next !== pwForm.confirm) {
-      setPwError("New passwords do not match.");
-      return;
-    }
-    if (pwForm.next.length < 6) {
-      setPwError("Password must be at least 6 characters.");
-      return;
-    }
-    setPwSaving(true);
+  const fetchReviews = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          currentPassword: pwForm.current,
-          password: pwForm.next,
-          passwordConfirmation: pwForm.confirm,
-        }),
-      });
-      if (!res.ok) {
-        const e = await res.json();
-        throw new Error(e?.error?.message || "Password change failed");
+      const profileRes = await fetch(
+        `${API_URL}/api/users/${providerId}?populate[provider_profile]=true`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const profileData = await profileRes.json();
+      const raw = profileData?.provider_profile;
+      const profileDocumentId = raw?.documentId ?? raw?.id;
+      if (!profileDocumentId) {
+        setLoading(false);
+        return;
       }
-      setPwSuccess(true);
-      setPwForm({ current: "", next: "", confirm: "" });
-      setTimeout(() => setPwSuccess(false), 3000);
+      const res = await fetch(
+        `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer][populate]=profilePicture&sort=createdAt:desc&pagination[limit]=100`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const data = await res.json();
+      const list = (data?.data || []).map((r) => ({
+        ...(r.attributes ?? r),
+        documentId: r.documentId ?? r.id,
+        customer: r.customer?.data
+          ? (r.customer.data.attributes ?? r.customer.data)
+          : (r.customer ?? {}),
+      }));
+      setReviews(list);
+      if (list.length > 0) {
+        const total = list.length;
+        const avg = list.reduce((s, r) => s + (r.rating ?? 0), 0) / total;
+        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        list.forEach((r) => {
+          const star = Math.round(r.rating ?? 0);
+          if (breakdown[star] !== undefined) breakdown[star]++;
+        });
+        setStats({ avg, total, breakdown });
+        if (onRatingComputed) onRatingComputed(avg);
+      }
     } catch (e) {
-      setPwError(e.message);
+      console.error(e);
     } finally {
-      setPwSaving(false);
+      setLoading(false);
     }
   };
+
+  if (loading)
+    return (
+      <div className="flex justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    );
 
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-          Current Password
-        </label>
-
-        <div className="relative">
-          <input
-            type={showPw.current ? "text" : "password"}
-            value={pwForm.current}
-            onChange={(e) => setPw("current", e.target.value)}
-            className="
-        w-full border border-gray-200 rounded-xl
-        px-4 py-2.5 pr-10 text-sm
-        bg-gray-50
-        focus:outline-none focus:ring-2 focus:ring-blue-400
-        transition
-      "
-            placeholder="password"
-          />
-
-          <span
-            onClick={() => togglePw("current")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
-          >
-            <EyeIcon open={showPw.current} />
-          </span>
-        </div>
+    <div>
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-blue-500 mb-1">
+          Feedback
+        </p>
+        <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+          My Reviews
+        </h2>
       </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-            New Password
-          </label>
-
-          <div className="relative">
-            <input
-              type={showPw.next ? "text" : "password"}
-              value={pwForm.next}
-              onChange={(e) => setPw("next", e.target.value)}
-              className="
-        w-full border border-gray-200 rounded-xl
-        px-4 py-2.5 pr-10 text-sm
-        bg-gray-50
-        focus:outline-none focus:ring-2 focus:ring-blue-400
-        transition
-      "
-              placeholder="password"
-            />
-
-            <span
-              onClick={() => togglePw("next")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
-            >
-              <EyeIcon open={showPw.next} />
-            </span>
+      {reviews.length === 0 ? (
+        <EmptyState
+          Icon={StarIcon}
+          title="No reviews yet"
+          sub="Reviews from customers will appear here after completed jobs."
+        />
+      ) : (
+        <>
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 flex gap-8 flex-wrap">
+            <div className="flex flex-col items-center justify-center min-w-[100px]">
+              <p className="text-5xl font-extrabold text-gray-900 tracking-tight">
+                {stats.avg.toFixed(1)}
+              </p>
+              <div className="flex gap-0.5 mt-2">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <StarIcon
+                    key={s}
+                    className={`w-4 h-4 ${s <= Math.round(stats.avg) ? "text-amber-400" : "text-gray-200"}`}
+                    filled={s <= Math.round(stats.avg)}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                {stats.total} review{stats.total !== 1 ? "s" : ""}
+              </p>
+            </div>
+            <div className="flex-1 min-w-[200px] space-y-2 justify-center flex flex-col">
+              {[5, 4, 3, 2, 1].map((star) => {
+                const count = stats.breakdown[star] ?? 0;
+                const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
+                return (
+                  <div key={star} className="flex items-center gap-3">
+                    <div className="flex items-center gap-1 w-8 justify-end">
+                      <span className="text-xs font-semibold text-gray-500">
+                        {star}
+                      </span>
+                      <StarIcon className="w-3 h-3 text-amber-400" filled />
+                    </div>
+                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-400 w-6 text-right">
+                      {count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-            Confirm New Password
-          </label>
-
-          <div className="relative">
-            <input
-              type={showPw.confirm ? "text" : "password"}
-              value={pwForm.confirm}
-              onChange={(e) => setPw("confirm", e.target.value)}
-              className="
-        w-full border border-gray-200 rounded-xl
-        px-4 py-2.5 pr-10 text-sm
-        bg-gray-50
-        focus:outline-none focus:ring-2 focus:ring-blue-400
-        transition
-      "
-              placeholder="password"
-            />
-
-            <span
-              onClick={() => togglePw("confirm")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
-            >
-              <EyeIcon open={showPw.confirm} />
-            </span>
+          <div className="space-y-3">
+            {reviews.map((review) => {
+              const customer = review.customer ?? {};
+              const customerName = customer?.username || "Customer";
+              const colorClass = avatarColor(customerName);
+              const rawPic = Array.isArray(customer?.profilePicture)
+                ? (customer.profilePicture[0] ?? null)
+                : (customer?.profilePicture ?? null);
+              const picUrl = rawPic?.url
+                ? rawPic.url.startsWith("http")
+                  ? rawPic.url
+                  : `${API_URL}${rawPic.url}`
+                : null;
+              const rating = review.rating ?? 0;
+              return (
+                <div
+                  key={review.documentId ?? review.id}
+                  className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    {picUrl ? (
+                      <img
+                        src={picUrl}
+                        alt={customerName}
+                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-gray-100"
+                      />
+                    ) : (
+                      <div
+                        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
+                      >
+                        {customerName.slice(0, 2).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-gray-900">
+                          {customerName}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {timeSince(review.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex gap-0.5 mt-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <StarIcon
+                            key={s}
+                            className={`w-3.5 h-3.5 ${s <= rating ? "text-amber-400" : "text-gray-200"}`}
+                            filled={s <= rating}
+                          />
+                        ))}
+                        <span className="text-xs text-gray-400 ml-1 font-semibold">
+                          {rating}/5
+                        </span>
+                      </div>
+                      {review.comment ? (
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                          {review.comment}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">
+                          No written review.
+                        </p>
+                      )}
+                      {review.service_request?.title && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
+                          <ClipboardIcon className="w-3 h-3" />
+                          {review.service_request.title}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
-      </div>
-      {pwError && (
-        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600">
-          {pwError}
-        </div>
+        </>
       )}
-      {pwSuccess && (
-        <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5 text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
-          <CheckIcon className="w-3.5 h-3.5" /> Password changed successfully!
-        </div>
-      )}
-      <button
-        onClick={handlePasswordChange}
-        disabled={pwSaving}
-        className="bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors"
-      >
-        {pwSaving ? "Updating..." : "Update Password"}
-      </button>
     </div>
   );
 }
@@ -2239,252 +2566,172 @@ function ProfileTab({
     </div>
   );
 }
-function SubscriptionPaywall({ onSubscribe, loading }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-md w-full shadow-lg text-center">
-        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <ShieldCheckIcon className="w-7 h-7 text-blue-500" />
-        </div>
-        <h2 className="text-xl font-extrabold text-gray-900 mb-2">
-          Activate Your Provider Account
-        </h2>
-        <p className="text-sm text-gray-500 mb-6">
-          A subscription is required to access the provider dashboard and
-          receive job bids.
-        </p>
-        <div className="flex gap-3 mb-4">
-          <button
-            onClick={() => onSubscribe("monthly")}
-            disabled={loading}
-            className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white font-bold py-3 rounded-xl text-sm transition-colors"
-          >
-            {loading ? "..." : "Monthly — Rs. 299"}
-          </button>
-          <button
-            onClick={() => onSubscribe("yearly")}
-            disabled={loading}
-            className="flex-1 bg-gray-900 hover:bg-gray-800 disabled:opacity-70 text-white font-bold py-3 rounded-xl text-sm transition-colors"
-          >
-            {loading ? "..." : "Yearly — Rs. 2000"}
-          </button>
-        </div>
-        <p className="text-xs text-gray-400">
-          Payments processed securely via Khalti
-        </p>
-      </div>
-    </div>
-  );
-}
 
-function ReviewsTab({ providerId }) {
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ avg: 0, total: 0, breakdown: {} });
+function PwChangeForm() {
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwError, setPwError] = useState("");
+  const setPw = (k, v) => setPwForm((f) => ({ ...f, [k]: v }));
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
+  const [showPw, setShowPw] = useState({
+    current: false,
+    next: false,
+    confirm: false,
+  });
 
-  const fetchReviews = async () => {
+  const togglePw = (field) => {
+    setShowPw((p) => ({ ...p, [field]: !p[field] }));
+  };
+
+  const handlePasswordChange = async () => {
+    setPwError("");
+    setPwSuccess(false);
+    if (!pwForm.current || !pwForm.next || !pwForm.confirm) {
+      setPwError("All fields are required.");
+      return;
+    }
+    if (pwForm.next !== pwForm.confirm) {
+      setPwError("New passwords do not match.");
+      return;
+    }
+    if (pwForm.next.length < 6) {
+      setPwError("Password must be at least 6 characters.");
+      return;
+    }
+    setPwSaving(true);
     try {
-      const profileRes = await fetch(
-        `${API_URL}/api/users/${providerId}?populate[provider_profile]=true`,
-        { headers: { Authorization: `Bearer ${getToken()}` } },
-      );
-      const profileData = await profileRes.json();
-      const raw = profileData?.provider_profile;
-      const profileDocumentId = raw?.documentId ?? raw?.id;
-
-      if (!profileDocumentId) {
-        setLoading(false);
-        return;
+      const res = await fetch(`${API_URL}/api/auth/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({
+          currentPassword: pwForm.current,
+          password: pwForm.next,
+          passwordConfirmation: pwForm.confirm,
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json();
+        throw new Error(e?.error?.message || "Password change failed");
       }
-
-      const res = await fetch(
-        `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&populate[customer][populate]=profilePicture&sort=createdAt:desc&pagination[limit]=100`,
-        { headers: { Authorization: `Bearer ${getToken()}` } },
-      );
-      const data = await res.json();
-      const list = (data?.data || []).map((r) => ({
-        ...(r.attributes ?? r),
-        documentId: r.documentId ?? r.id,
-        customer: r.customer?.data
-          ? (r.customer.data.attributes ?? r.customer.data)
-          : (r.customer ?? {}),
-      }));
-      setReviews(list);
-
-      if (list.length > 0) {
-        const total = list.length;
-        const avg = list.reduce((s, r) => s + (r.rating ?? 0), 0) / total;
-        const breakdown = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-        list.forEach((r) => {
-          const star = Math.round(r.rating ?? 0);
-          if (breakdown[star] !== undefined) breakdown[star]++;
-        });
-        setStats({ avg, total, breakdown });
-      }
+      setPwSuccess(true);
+      setPwForm({ current: "", next: "", confirm: "" });
+      setTimeout(() => setPwSuccess(false), 3000);
     } catch (e) {
-      console.error(e);
+      setPwError(e.message);
     } finally {
-      setLoading(false);
+      setPwSaving(false);
     }
   };
 
-  if (loading)
-    return (
-      <div className="flex justify-center py-20">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
-
   return (
-    <div>
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-widest text-blue-500 mb-1">
-          Feedback
-        </p>
-        <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
-          My Reviews
-        </h2>
+    <div className="space-y-4">
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+          Current Password
+        </label>
+
+        <div className="relative">
+          <input
+            type={showPw.current ? "text" : "password"}
+            value={pwForm.current}
+            onChange={(e) => setPw("current", e.target.value)}
+            className="
+        w-full border border-gray-200 rounded-xl
+        px-4 py-2.5 pr-10 text-sm
+        bg-gray-50
+        focus:outline-none focus:ring-2 focus:ring-blue-400
+        transition
+      "
+            placeholder="password"
+          />
+
+          <span
+            onClick={() => togglePw("current")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+          >
+            <EyeIcon open={showPw.current} />
+          </span>
+        </div>
       </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+            New Password
+          </label>
 
-      {reviews.length === 0 ? (
-        <EmptyState
-          Icon={StarIcon}
-          title="No reviews yet"
-          sub="Reviews from customers will appear here after completed jobs."
-        />
-      ) : (
-        <>
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6 flex gap-8 flex-wrap">
-            <div className="flex flex-col items-center justify-center min-w-[100px]">
-              <p className="text-5xl font-extrabold text-gray-900 tracking-tight">
-                {stats.avg.toFixed(1)}
-              </p>
-              <div className="flex gap-0.5 mt-2">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <StarIcon
-                    key={s}
-                    className={`w-4 h-4 ${s <= Math.round(stats.avg) ? "text-amber-400" : "text-gray-200"}`}
-                    filled={s <= Math.round(stats.avg)}
-                  />
-                ))}
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                {stats.total} review{stats.total !== 1 ? "s" : ""}
-              </p>
-            </div>
+          <div className="relative">
+            <input
+              type={showPw.next ? "text" : "password"}
+              value={pwForm.next}
+              onChange={(e) => setPw("next", e.target.value)}
+              className="
+        w-full border border-gray-200 rounded-xl
+        px-4 py-2.5 pr-10 text-sm
+        bg-gray-50
+        focus:outline-none focus:ring-2 focus:ring-blue-400
+        transition
+      "
+              placeholder="password"
+            />
 
-            <div className="flex-1 min-w-[200px] space-y-2 justify-center flex flex-col">
-              {[5, 4, 3, 2, 1].map((star) => {
-                const count = stats.breakdown[star] ?? 0;
-                const pct = stats.total > 0 ? (count / stats.total) * 100 : 0;
-                return (
-                  <div key={star} className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 w-8 justify-end">
-                      <span className="text-xs font-semibold text-gray-500">
-                        {star}
-                      </span>
-                      <StarIcon className="w-3 h-3 text-amber-400" filled />
-                    </div>
-                    <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-amber-400 rounded-full transition-all duration-500"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-400 w-6 text-right">
-                      {count}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+            <span
+              onClick={() => togglePw("next")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+            >
+              <EyeIcon open={showPw.next} />
+            </span>
           </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+            Confirm New Password
+          </label>
 
-          <div className="space-y-3">
-            {reviews.map((review) => {
-              const customer = review.customer ?? {};
-              const customerName = customer?.username || "Customer";
-              const colorClass = avatarColor(customerName);
-              const rawPic = Array.isArray(customer?.profilePicture)
-                ? (customer.profilePicture[0] ?? null)
-                : (customer?.profilePicture ?? null);
-              const picUrl = rawPic?.url
-                ? rawPic.url.startsWith("http")
-                  ? rawPic.url
-                  : `${API_URL}${rawPic.url}`
-                : null;
-              const rating = review.rating ?? 0;
+          <div className="relative">
+            <input
+              type={showPw.confirm ? "text" : "password"}
+              value={pwForm.confirm}
+              onChange={(e) => setPw("confirm", e.target.value)}
+              className="
+        w-full border border-gray-200 rounded-xl
+        px-4 py-2.5 pr-10 text-sm
+        bg-gray-50
+        focus:outline-none focus:ring-2 focus:ring-blue-400
+        transition
+      "
+              placeholder="password"
+            />
 
-              return (
-                <div
-                  key={review.documentId ?? review.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    {picUrl ? (
-                      <img
-                        src={picUrl}
-                        alt={customerName}
-                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-gray-100"
-                      />
-                    ) : (
-                      <div
-                        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${colorClass} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}
-                      >
-                        {customerName.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <span className="font-bold text-sm text-gray-900">
-                          {customerName}
-                        </span>
-                        <span className="text-xs text-gray-400">
-                          {timeSince(review.createdAt)}
-                        </span>
-                      </div>
-
-                      <div className="flex gap-0.5 mt-1 mb-2">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                          <StarIcon
-                            key={s}
-                            className={`w-3.5 h-3.5 ${s <= rating ? "text-amber-400" : "text-gray-200"}`}
-                            filled={s <= rating}
-                          />
-                        ))}
-                        <span className="text-xs text-gray-400 ml-1 font-semibold">
-                          {rating}/5
-                        </span>
-                      </div>
-                      {review.comment ? (
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          {review.comment}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic">
-                          No written review.
-                        </p>
-                      )}
-
-                      {review.service_request?.title && (
-                        <div className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-1">
-                          <ClipboardIcon className="w-3 h-3" />
-                          {review.service_request.title}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            <span
+              onClick={() => togglePw("confirm")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500 cursor-pointer transition"
+            >
+              <EyeIcon open={showPw.confirm} />
+            </span>
           </div>
-        </>
+        </div>
+      </div>
+      {pwError && (
+        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 text-xs text-red-600">
+          {pwError}
+        </div>
       )}
+      {pwSuccess && (
+        <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5 text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
+          <CheckIcon className="w-3.5 h-3.5" /> Password changed successfully!
+        </div>
+      )}
+      <button
+        onClick={handlePasswordChange}
+        disabled={pwSaving}
+        className="bg-blue-500 hover:bg-blue-600 disabled:opacity-70 text-white font-semibold px-6 py-2.5 rounded-xl text-sm transition-colors"
+      >
+        {pwSaving ? "Updating..." : "Update Password"}
+      </button>
     </div>
   );
 }
@@ -2502,17 +2749,36 @@ export default function ProviderDashboard() {
   const [subStatus, setSubStatus] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
   const [subInitiating, setSubInitiating] = useState(false);
+  const [chatDocId, setChatDocId] = useState(null);
 
   const handleUserSaved = (updatedUser) => setUser(updatedUser);
 
+  const activeRequestDocIds = myBids
+    .filter((b) => {
+      const status = b?.service_request?.service_status;
+      return (
+        b?.bid_status === "accepted" &&
+        (status === "in_progress" || status === "awaiting_confirmation")
+      );
+    })
+    .map((b) => b?.service_request?.documentId)
+    .filter(Boolean);
+
+  const unreadMap = useUnreadMessages(activeRequestDocIds, user?.id);
+  const totalUnreadCount = Object.values(unreadMap).reduce((s, n) => s + n, 0);
+
+  const handleGoToChat = useCallback(() => {
+    const firstDocId = Object.keys(unreadMap)[0] ?? null;
+    setChatDocId(firstDocId);
+    setActiveTab("bids");
+  }, [unreadMap]);
+
   useEffect(() => {
     if (authLoading) return;
-
     if (!authUser) {
       navigate("/login", { replace: true });
       return;
     }
-
     setUser(authUser);
     Promise.all([
       fetchProfile(authUser),
@@ -2520,7 +2786,7 @@ export default function ProviderDashboard() {
       fetchMyBids(authUser),
       fetchPayments(authUser),
     ]).finally(() => setLoading(false));
-  }, [authUser, authLoading]);
+  }, [authUser, authLoading, navigate]);
 
   useEffect(() => {
     const checkSub = async () => {
@@ -2531,7 +2797,7 @@ export default function ProviderDashboard() {
         const data = await res.json();
         setSubStatus(data);
       } catch {
-        setSubStatus({ isActive: false });
+        setSubStatus({ isActive: false, subscriptionStatus: null });
       } finally {
         setSubLoading(false);
       }
@@ -2567,15 +2833,12 @@ export default function ProviderDashboard() {
         { headers: { Authorization: `Bearer ${getToken()}` } },
       );
       const data = await res.json();
-
       const profilePicture = Array.isArray(data.profilePicture)
         ? (data.profilePicture[0] ?? null)
         : (data.profilePicture ?? null);
-
       const updatedUser = { ...u, profilePicture };
       setUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser));
-
       const raw = data?.provider_profile;
       if (!raw) {
         console.warn("[fetchProfile] No profile found");
@@ -2584,6 +2847,23 @@ export default function ProviderDashboard() {
       const p = raw.attributes ?? raw;
       p.id = raw.id;
       p.documentId = raw.documentId ?? raw.id;
+      try {
+        const profileDocumentId = raw.documentId ?? raw.id;
+        const reviewsRes = await fetch(
+          `${API_URL}/api/reviews?filters[provider_profile][documentId][$eq]=${profileDocumentId}&fields[0]=rating&pagination[limit]=100`,
+          { headers: { Authorization: `Bearer ${getToken()}` } },
+        );
+        const reviewsData = await reviewsRes.json();
+        const list = reviewsData?.data ?? [];
+        if (list.length > 0) {
+          const avg =
+            list.reduce((s, r) => s + ((r.attributes ?? r).rating ?? 0), 0) /
+            list.length;
+          p.rating = avg;
+        }
+      } catch (e) {
+        console.warn("[fetchProfile] Could not fetch reviews for rating:", e);
+      }
       setProfile(p);
     } catch (e) {
       console.error("[fetchProfile] Exception:", e);
@@ -2648,7 +2928,6 @@ export default function ProviderDashboard() {
   const nearbyRequests = profile?.specialty
     ? allRequests.filter((req) => a(req).category === profile.specialty)
     : allRequests;
-
   const refreshBids = () => {
     if (user) {
       fetchMyBids(user);
@@ -2682,21 +2961,30 @@ export default function ProviderDashboard() {
       </div>
     );
 
-  if (!subStatus?.isActive)
+  const isExpiredOrFailed =
+    subStatus?.subscriptionStatus === "expired" ||
+    subStatus?.subscriptionStatus === "failed";
+
+  if (!subStatus?.isActive && !isExpiredOrFailed) {
     return (
       <SubscriptionPaywall
         onSubscribe={handleSubscribe}
         loading={subInitiating}
       />
     );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50 font-sans antialiased">
       <Sidebar
         active={activeTab}
-        setActive={setActiveTab}
+        setActive={(tab) => {
+          setActiveTab(tab);
+          if (tab !== "bids") setChatDocId(null);
+        }}
         user={user}
         profile={profile}
+        unreadCount={totalUnreadCount}
       />
       <main className="flex-1 px-8 py-8 overflow-y-auto">
         {activeTab === "dashboard" && (
@@ -2708,6 +2996,11 @@ export default function ProviderDashboard() {
             onNavigate={setActiveTab}
             onBid={refreshBids}
             payments={payments}
+            unreadMap={unreadMap}
+            onGoToChat={handleGoToChat}
+            subStatus={subStatus}
+            onSubscribe={handleSubscribe}
+            subInitiating={subInitiating}
           />
         )}
         {activeTab === "requests" && (
@@ -2716,10 +3009,15 @@ export default function ProviderDashboard() {
             myBids={myBids}
             profile={profile}
             onBidSent={refreshBids}
+            subStatus={subStatus}
           />
         )}
         {activeTab === "bids" && (
-          <MyBidsTab providerId={user?.id} payments={payments} />
+          <MyBidsTab
+            providerId={user?.id}
+            payments={payments}
+            openChatDocId={chatDocId}
+          />
         )}
         {activeTab === "profile" && (
           <ProfileTab
@@ -2730,7 +3028,14 @@ export default function ProviderDashboard() {
             onUserSaved={handleUserSaved}
           />
         )}
-        {activeTab === "reviews" && <ReviewsTab providerId={user?.id} />}
+        {activeTab === "reviews" && (
+          <ReviewsTab
+            providerId={user?.id}
+            onRatingComputed={(avg) =>
+              setProfile((prev) => (prev ? { ...prev, rating: avg } : prev))
+            }
+          />
+        )}
       </main>
     </div>
   );

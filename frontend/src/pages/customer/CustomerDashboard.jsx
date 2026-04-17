@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -38,6 +38,47 @@ const customerIcon = new L.Icon({
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
 });
+
+function useUnreadMessages(requests) {
+  const [unreadMap, setUnreadMap] = useState({});
+
+  const requestIds = requests.map((r) => r.documentId).join(",");
+
+  useEffect(() => {
+    if (!requests.length) return;
+
+    const fetchUnread = async () => {
+      const user = getUser();
+      const results = {};
+
+      await Promise.all(
+        requests.map(async (req) => {
+          try {
+            const res = await fetch(
+              `${BASE_URL}/api/messages?` +
+                `filters[service_request][documentId][$eq]=${req.documentId}` +
+                `&filters[sender][id][$ne]=${user.id}` +
+                `&filters[read][$eq]=false` +
+                `&pagination[limit]=1&fields[0]=id`,
+              { headers: { Authorization: `Bearer ${getToken()}` } },
+            );
+            const data = await res.json();
+            const count = data?.meta?.pagination?.total ?? 0;
+            if (count > 0) results[req.documentId] = count;
+          } catch (_) {}
+        }),
+      );
+
+      setUnreadMap(results);
+    };
+
+    fetchUnread();
+    const id = setInterval(fetchUnread, 60_000);
+    return () => clearInterval(id);
+  }, [requestIds]);
+
+  return unreadMap;
+}
 
 const RecenterMap = ({ lat, lng }) => {
   const map = useMap();
@@ -684,7 +725,7 @@ const TrackingPage = ({ request, onBack }) => {
             ) : (
               <span className="flex items-center gap-1.5 text-xs text-gray-400 font-medium bg-gray-50 border border-gray-200 px-3 py-1 rounded-full">
                 <span className="w-1.5 h-1.5 bg-gray-300 rounded-full" />
-                Awaiting provider
+                Awaiting provider to Share Location
               </span>
             )}
           </div>
@@ -778,6 +819,7 @@ const BookingCard = ({
   onTrack,
   onConfirmCompletion,
   onViewProfile,
+  unreadCount = 0,
 }) => {
   const acceptedBid = request.bids?.find((b) => b.bid_status === "accepted");
   const provider = acceptedBid?.provider;
@@ -978,25 +1020,33 @@ const BookingCard = ({
             View Bids
           </button>
         )}
-        <button
-          onClick={() => onTrack(request)}
-          className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
+
+        <div className="relative inline-flex">
+          <button
+            onClick={() => onTrack(request)}
+            className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-          Message
-        </button>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            Message
+          </button>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1014,9 +1064,17 @@ export default function CustomerDashboard() {
   const [paidRequestIds, setPaidRequestIds] = useState(new Set());
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const navigate = useNavigate();
   const user = getUser();
 
+  const allRequests = useMemo(
+    () => [...activeRequests, ...completedRequests],
+    [activeRequests, completedRequests],
+  );
+  const unreadMap = useUnreadMessages(allRequests);
+  const totalUnread = Object.values(unreadMap).reduce((s, n) => s + n, 0);
+  const unreadBookingCount = Object.keys(unreadMap).length;
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [view]);
@@ -1203,6 +1261,32 @@ export default function CustomerDashboard() {
         />
       )}
 
+      {totalUnread > 0 && !bannerDismissed && (
+        <div className="max-w-6xl mx-auto px-6 pt-6">
+          <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-3">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse flex-shrink-0" />
+            <p className="text-sm text-blue-700 flex-1">
+              You have{" "}
+              <span className="font-semibold">
+                {totalUnread} unread message{totalUnread !== 1 ? "s" : ""}
+              </span>{" "}
+              across{" "}
+              <span className="font-semibold">
+                {unreadBookingCount} booking
+                {unreadBookingCount !== 1 ? "s" : ""}
+              </span>
+            </p>
+            <button
+              onClick={() => setBannerDismissed(true)}
+              className="text-blue-400 hover:text-blue-700 text-xl leading-none transition font-medium"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -1294,36 +1378,11 @@ export default function CustomerDashboard() {
                   onTrack={openTracking}
                   onConfirmCompletion={handleConfirmCompletion}
                   onViewProfile={setShowProfile}
+                  unreadCount={unreadMap[req.documentId] ?? 0}
                 />
               ))}
             </div>
           )}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-          <h2 className="text-base font-bold text-gray-800 mb-4">
-            Quick Actions
-          </h2>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => navigate("/services")}
-              className="px-5 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
-            >
-              Book New Service
-            </button>
-            <button
-              onClick={() => navigate("/register?role=provider")}
-              className="px-5 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
-            >
-              Become a Provider
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="px-5 py-2.5 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
-            >
-              Download Receipts
-            </button>
-          </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">

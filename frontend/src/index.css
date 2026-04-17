@@ -5,3 +5,7 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.leaflet-container {
+  z-index: 0;
+}

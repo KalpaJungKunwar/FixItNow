@@ -54,6 +54,33 @@ export default {
     ctx.body = users;
   },
 
+  async blockProviderSubscription(ctx: Context) {
+  if (!(await requireAdmin(ctx))) return;
+  const { userId } = ctx.params;
+  const { reason } = ctx.request.body as any; 
+
+  await strapi.entityService.update(
+    "plugin::users-permissions.user",
+    userId,
+    { data: { blocked: true, approvalStatus: "blocked" } as any }
+  );
+
+  const subs = await strapi.entityService.findMany(
+    "api::provider-subscription.provider-subscription",
+    { filters: { provider: { id: userId } }, sort: { createdAt: "desc" }, limit: 1 }
+  ) as any[];
+
+  if (subs?.[0]) {
+    await strapi.entityService.update(
+      "api::provider-subscription.provider-subscription",
+      subs[0].id,
+      { data: { subscriptionStatus: reason === "expired" ? "expired" : "failed" } }
+    );
+  }
+
+  ctx.body = { message: `Provider blocked (${reason})` };
+},
+
   async getAllUsers(ctx: Context) {
     if (!(await requireAdmin(ctx))) return;
 

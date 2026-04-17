@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSocket } from "../context/SocketContext";
 
 const BASE_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
@@ -10,6 +10,32 @@ export default function ChatBox({ requestId, currentUser }) {
   const [input, setInput] = useState("");
   const [fetchError, setFetchError] = useState(false);
   const bottomRef = useRef(null);
+
+  const markMessagesAsRead = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `${BASE_URL}/api/messages?filters[service_request][documentId][$eq]=${requestId}&filters[sender][id][$ne]=${currentUser.id}&filters[read][$eq]=false&fields[0]=id&fields[1]=documentId&pagination[limit]=100`,
+        { headers: { Authorization: `Bearer ${getToken()}` } },
+      );
+      const data = await res.json();
+      const unread = data.data || [];
+
+      await Promise.all(
+        unread.map((msg) =>
+          fetch(`${BASE_URL}/api/messages/${msg.documentId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${getToken()}`,
+            },
+            body: JSON.stringify({ data: { read: true } }),
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error("Failed to mark messages as read:", err);
+    }
+  }, [requestId, currentUser.id]);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -25,6 +51,7 @@ export default function ChatBox({ requestId, currentUser }) {
 
         const history = (data.data || []).map((m) => ({
           id: m.id,
+          documentId: m.documentId,
           senderId: m.sender?.id,
           senderName: m.sender_name || m.sender?.username,
           message: m.msg || m.message,
@@ -32,6 +59,7 @@ export default function ChatBox({ requestId, currentUser }) {
         }));
 
         setMessages(history);
+        await markMessagesAsRead();
       } catch (err) {
         console.error("Failed to fetch chat history:", err);
         setFetchError(true);
@@ -41,7 +69,7 @@ export default function ChatBox({ requestId, currentUser }) {
     if (requestId) {
       fetchHistory();
     }
-  }, [requestId]);
+  }, [requestId, markMessagesAsRead]);
 
   useEffect(() => {
     const socket = socketRef.current;
@@ -53,6 +81,7 @@ export default function ChatBox({ requestId, currentUser }) {
       if (msg.requestId !== requestId) return;
       if (msg.senderId === currentUser.id) return;
       setMessages((prev) => [...prev, msg]);
+      markMessagesAsRead();
     };
 
     socket.on("receive_message", handleMessage);
@@ -61,9 +90,7 @@ export default function ChatBox({ requestId, currentUser }) {
       socket.off("receive_message", handleMessage);
       socket.emit("leave_room", requestId);
     };
-  }, [requestId, socketRef, currentUser.id]);
-
-  
+  }, [requestId, socketRef, currentUser.id, markMessagesAsRead]);
 
   const sendMessage = () => {
     if (!input.trim()) return;
@@ -162,9 +189,7 @@ export default function ChatBox({ requestId, currentUser }) {
                     {msg.senderName}
                   </p>
                 )}
-
                 <p>{msg.message}</p>
-
                 <p
                   className={`text-xs mt-1 ${
                     isMe ? "text-blue-200" : "text-gray-400"
@@ -193,7 +218,6 @@ export default function ChatBox({ requestId, currentUser }) {
           placeholder="Type a message..."
           className="flex-1 text-sm px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
         />
-
         <button
           onClick={sendMessage}
           disabled={!input.trim()}

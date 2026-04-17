@@ -1,5 +1,53 @@
+import fs from 'fs';
 import { Server } from "socket.io";
 import type { Core } from "@strapi/strapi";
+
+// Patch fs.unlink, fs.rmdir, and fs.rm to handle Windows file-locking on temp upload cleanup
+const _unlink = fs.unlink.bind(fs);
+(fs as any).unlink = (filePath: string, cb: (err: NodeJS.ErrnoException | null) => void) => {
+  _unlink(filePath, (err) => {
+    if (err && (err.code === 'EPERM' || err.code === 'EBUSY' || err.code === 'ENOTEMPTY')) {
+      setTimeout(() => _unlink(filePath, () => {}), 800);
+      cb(null);
+    } else {
+      cb(err);
+    }
+  });
+};
+
+const _rmdir = fs.rmdir.bind(fs);
+(fs as any).rmdir = (dirPath: string, optionsOrCb: any, maybeCb?: any) => {
+  const cb = maybeCb ?? optionsOrCb;
+  const opts = maybeCb ? optionsOrCb : undefined;
+  const wrapped = (err: NodeJS.ErrnoException | null) => {
+    if (err && (err.code === 'ENOTEMPTY' || err.code === 'EBUSY' || err.code === 'EPERM')) {
+      setTimeout(() => (opts ? _rmdir(dirPath, opts, () => {}) : _rmdir(dirPath, () => {})), 1000);
+      cb(null);
+    } else {
+      cb(err);
+    }
+  };
+  opts ? _rmdir(dirPath, opts, wrapped) : _rmdir(dirPath, wrapped);
+};
+
+const _rm = fs.rm?.bind(fs);
+if (_rm) {
+  (fs as any).rm = (dirPath: string, optionsOrCb: any, maybeCb?: any) => {
+    const cb = maybeCb ?? optionsOrCb;
+    const opts = maybeCb ? optionsOrCb : undefined;
+    const wrapped = (err: NodeJS.ErrnoException | null) => {
+      if (err && (err.code === 'ENOTEMPTY' || err.code === 'EBUSY' || err.code === 'EPERM')) {
+        setTimeout(() => (opts ? _rm(dirPath, opts, () => {}) : _rm(dirPath, () => {})), 1000);
+        cb(null);
+      } else {
+        cb(err);
+      }
+    };
+    opts ? _rm(dirPath, opts, wrapped) : _rm(dirPath, wrapped);
+  };
+}
+
+// rest of your existing code unchanged...
 
 process.on('unhandledRejection', (reason: any) => {
   if (reason?.code === 'EBUSY' && reason?.syscall === 'unlink') {

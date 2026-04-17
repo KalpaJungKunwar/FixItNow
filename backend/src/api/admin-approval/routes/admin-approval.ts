@@ -48,7 +48,12 @@ export default {
       handler: "admin-approval.unblockUser",
       config: { policies: [] },
     },
-
+    {
+      method: "PUT",
+      path: "/admin-approval/block-provider/:userId",
+      handler: "admin-approval.blockProviderSubscription",
+      config: { policies: [] },
+    },
     {
       method: "POST",
       path: "/admin-approval/check-status",
@@ -59,10 +64,7 @@ export default {
       method: "GET",
       path: "/admin-approval/provider-profiles",
       handler: "admin-approval.getProviderProfiles",
-      config: {
-        policies: [],
-        auth: false,
-      },
+      config: { policies: [], auth: false },
     },
   ],
 };

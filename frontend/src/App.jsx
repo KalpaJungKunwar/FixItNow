@@ -77,7 +77,14 @@ function App() {
               </PublicOnlyRoute>
             }
           />
-          <Route path="/pending-approval" element={<PendingApproval />} />
+          <Route
+            path="/pending-approval"
+            element={
+              <PublicOnlyRoute>
+                <PendingApproval />
+              </PublicOnlyRoute>
+            }
+          />
 
           <Route
             path="/services"

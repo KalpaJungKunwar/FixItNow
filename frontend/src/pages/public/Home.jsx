@@ -229,10 +229,15 @@ const testimonials = [
 
 const STRAPI_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
 
-async function fetchLiveRequests() {
+async function fetchLiveRequests(userId, token) {
   const res = await fetch(
-    `${STRAPI_URL}/api/service-requests?populate=bids&fields[0]=title&fields[1]=category&fields[2]=service_status&fields[3]=suggested_budget&sort=createdAt:desc&pagination[limit]=3`,
-    { headers: { "Content-Type": "application/json" } },
+    `${STRAPI_URL}/api/service-requests?filters[customer][id][$eq]=${userId}&populate=bids&fields[0]=title&fields[1]=category&fields[2]=service_status&fields[3]=suggested_budget&sort=createdAt:desc&pagination[limit]=3`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    },
   );
   if (!res.ok) throw new Error("Failed to fetch");
   const json = await res.json();
@@ -255,6 +260,10 @@ const statusConfig = {
     label: "In Progress",
     cls: "bg-amber-50 text-amber-600 border-amber-100",
   },
+  awaiting_confirmation: {
+    label: "Awaiting",
+    cls: "bg-yellow-50 text-yellow-600 border-yellow-100",
+  },
   completed: {
     label: "Completed",
     cls: "bg-green-50 text-green-600 border-green-100",
@@ -263,7 +272,10 @@ const statusConfig = {
     label: "Accepted",
     cls: "bg-emerald-50 text-emerald-600 border-emerald-100",
   },
-  rejected: { label: "Rejected", cls: "bg-red-50 text-red-500 border-red-100" },
+  rejected: {
+    label: "Rejected",
+    cls: "bg-red-50 text-red-500 border-red-100",
+  },
 };
 
 const categoryIcons = {
@@ -274,7 +286,7 @@ const categoryIcons = {
   Painting: PaintIcon,
 };
 
-function LiveMarketplace({ isLoggedIn }) {
+function LiveMarketplace({ isLoggedIn, userId, token }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -282,12 +294,18 @@ function LiveMarketplace({ isLoggedIn }) {
 
   useEffect(() => {
     let cancelled = false;
+
     const load = async () => {
+      if (!isLoggedIn || !userId || !token) {
+        setLoading(false);
+        return;
+      }
       setRefreshing(true);
       try {
-        const data = await fetchLiveRequests();
-        if (!cancelled && data.length > 0) setRequests(data);
+        const data = await fetchLiveRequests(userId, token);
+        if (!cancelled) setRequests(data);
       } catch {
+        // silently fail
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -295,13 +313,14 @@ function LiveMarketplace({ isLoggedIn }) {
         }
       }
     };
+
     load();
     const interval = setInterval(load, 60_000);
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [isLoggedIn, userId, token]);
 
   const avgBid = (bids) =>
     bids.length
@@ -312,67 +331,84 @@ function LiveMarketplace({ isLoggedIn }) {
     <div className="w-full md:w-80 bg-white border border-gray-200 rounded-2xl shadow-sm p-5 flex-shrink-0">
       <div className="flex items-center justify-between mb-1">
         <h3 className="font-semibold text-gray-900 text-sm tracking-tight">
-          Live Marketplace
+          My Recent Requests
         </h3>
-        <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
-          <span
-            className={`w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block ${refreshing ? "animate-ping" : "animate-pulse"}`}
-          />
-          {refreshing ? "Updating..." : "Live"}
-        </span>
+        {isLoggedIn && (
+          <span className="flex items-center gap-1 text-xs text-emerald-600 font-medium">
+            <span
+              className={`w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block ${refreshing ? "animate-ping" : "animate-pulse"}`}
+            />
+            {refreshing ? "Updating..." : "Live"}
+          </span>
+        )}
       </div>
-      <p className="text-xs text-gray-400 mb-4">Recent requests &amp; bids</p>
+      <p className="text-xs text-gray-400 mb-4">Your latest service requests</p>
 
       <div className="relative min-h-[170px]">
         <div
           className={`space-y-3 transition-all duration-200 ${!isLoggedIn ? "blur-sm pointer-events-none select-none" : ""}`}
         >
-          {loading
-            ? [1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-4 bg-gray-100 rounded w-3/4 mb-1" />
-                  <div className="h-3 bg-gray-100 rounded w-1/2" />
-                </div>
-              ))
-            : requests.map((r) => {
-                const Icon = categoryIcons[r.category] || WrenchIcon;
-                const avg = avgBid(r.bids);
-                const hasAcceptedBid = r.bids.some(
-                  (b) => b.bid_status === "accepted",
-                );
-                const status = hasAcceptedBid
-                  ? statusConfig.accepted
-                  : statusConfig[r.service_status] || statusConfig.pending;
-                return (
-                  <div
-                    key={r.id}
-                    className="flex items-start justify-between gap-3 border-b border-gray-50 pb-3 last:border-0 last:pb-0"
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Icon className="w-3.5 h-3.5 text-blue-500" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-800 leading-tight">
-                          {r.title}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {hasAcceptedBid
-                            ? `Won at Rs. ${Math.min(...r.bids.filter((b) => b.bid_status === "accepted").map((b) => b.amount))}`
-                            : r.bids.length > 0
-                              ? `${r.bids.length} bid${r.bids.length > 1 ? "s" : ""} · Avg Rs. ${avg}`
-                              : `Budget Rs. ${r.suggested_budget}`}
-                        </p>
-                      </div>
+          {loading ? (
+            [1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-4 bg-gray-100 rounded w-3/4 mb-1" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              </div>
+            ))
+          ) : requests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <ClipboardIcon className="w-5 h-5 text-gray-400" />
+              </div>
+              <p className="text-sm font-medium text-gray-600">
+                No requests yet
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Post your first service request to get started
+              </p>
+            </div>
+          ) : (
+            requests.map((r) => {
+              const Icon = categoryIcons[r.category] || WrenchIcon;
+              const avg = avgBid(r.bids);
+              const hasAcceptedBid = r.bids.some(
+                (b) => b.bid_status === "accepted",
+              );
+              const status = hasAcceptedBid
+                ? statusConfig.accepted
+                : statusConfig[r.service_status] || statusConfig.pending;
+
+              return (
+                <div
+                  key={r.id}
+                  className="flex items-start justify-between gap-3 border-b border-gray-50 pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Icon className="w-3.5 h-3.5 text-blue-500" />
                     </div>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${status.cls}`}
-                    >
-                      {status.label}
-                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 leading-tight">
+                        {r.title}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {hasAcceptedBid
+                          ? `Won at Rs. ${Math.min(...r.bids.filter((b) => b.bid_status === "accepted").map((b) => b.amount)).toLocaleString()}`
+                          : r.bids.length > 0
+                            ? `${r.bids.length} bid${r.bids.length > 1 ? "s" : ""} · Avg Rs. ${avg?.toLocaleString()}`
+                            : `Suggested Rs. ${r.suggested_budget?.toLocaleString() ?? "—"}`}
+                      </p>
+                    </div>
                   </div>
-                );
-              })}
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full border whitespace-nowrap flex-shrink-0 ${status.cls}`}
+                  >
+                    {status.label}
+                  </span>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {!isLoggedIn && (
@@ -382,10 +418,10 @@ function LiveMarketplace({ isLoggedIn }) {
             </div>
             <div className="text-center">
               <p className="text-sm font-semibold text-gray-800 leading-tight">
-                Sign in to view live bids
+                Sign in to view your requests
               </p>
               <p className="text-xs text-gray-400 mt-0.5">
-                See real-time requests from your area
+                Track your service requests in real-time
               </p>
             </div>
             <button
@@ -398,12 +434,12 @@ function LiveMarketplace({ isLoggedIn }) {
         )}
       </div>
 
-      {isLoggedIn && (
+      {isLoggedIn && requests.length > 0 && (
         <Link
-          to="/services"
+          to="/dashboard"
           className="block mt-4 text-center bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium py-2 rounded-lg transition"
         >
-          Explore Marketplace →
+          View All Bookings →
         </Link>
       )}
     </div>
@@ -415,6 +451,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isLoggedIn = !!user;
+  const token = isLoggedIn ? localStorage.getItem("token") : null;
 
   useEffect(() => {
     if (user?.roleType === "admin") navigate("/admin", { replace: true });
@@ -504,7 +541,11 @@ export default function Home() {
             </div>
           </div>
 
-          <LiveMarketplace isLoggedIn={isLoggedIn} />
+          <LiveMarketplace
+            isLoggedIn={isLoggedIn}
+            userId={user?.id}
+            token={token}
+          />
         </div>
       </section>
 

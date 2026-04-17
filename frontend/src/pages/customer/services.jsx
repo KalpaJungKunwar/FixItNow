@@ -501,7 +501,7 @@ function RequestFormModal({ onClose, onSuccess }) {
     setLocSource("map");
   };
 
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
     setError("");
     if (!form.category || !form.title || !form.description || !form.location) {
       setError("Please fill all required fields.");
@@ -524,8 +524,22 @@ const handleSubmit = async () => {
           headers: { Authorization: `Bearer ${token}` },
           body: fd,
         });
-        photoIds = (await upRes.json()).map((f) => f.id);
+        if (!upRes.ok) {
+          const err = await upRes.json().catch(() => ({}));
+          throw new Error(
+            err?.error?.message ||
+              `Photo upload failed (${upRes.status}). Try posting without photos.`,
+          );
+        }
+        const upData = await upRes.json();
+        if (!Array.isArray(upData)) {
+          throw new Error(
+            "Photo upload returned unexpected data. Try again or skip photos.",
+          );
+        }
+        photoIds = upData.map((f) => f.id);
       }
+
       const res = await fetch(`${API_URL}/api/service-requests`, {
         method: "POST",
         headers: {
@@ -595,7 +609,6 @@ const handleSubmit = async () => {
         </div>
 
         <div className="px-7 py-6">
-          
           {step === 1 && (
             <>
               <label className="block text-xs font-semibold text-gray-700 mb-2">
@@ -736,7 +749,7 @@ const handleSubmit = async () => {
                   }}
                   disabled={locLoading}
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
-                    locStatus === "success" && locSource === "gps" // ← was: !showMap && form.customer_lat
+                    locStatus === "success" && locSource === "gps"
                       ? "border-emerald-400 bg-emerald-50 text-emerald-700"
                       : locStatus === "error"
                         ? "border-red-300 bg-red-50 text-red-600"
@@ -762,7 +775,7 @@ const handleSubmit = async () => {
                   className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
                     showMap
                       ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : locSource === "map" && form.customer_lat // ← was: form.customer_lat && locStatus !== "success"
+                      : locSource === "map" && form.customer_lat
                         ? "border-emerald-400 bg-emerald-50 text-emerald-700"
                         : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50"
                   }`}
@@ -933,7 +946,7 @@ function DeleteConfirmModal({ onConfirm, onCancel, loading }) {
   );
 }
 
-function BidCard({ bid, onAccept, onViewProfile }) {
+function BidCard({ bid, onAccept, onReject, onViewProfile }) {
   const attrs = a(bid);
   const provider = attrs.provider?.data
     ? a(attrs.provider.data)
@@ -1024,6 +1037,12 @@ function BidCard({ bid, onAccept, onViewProfile }) {
               View Profile
             </button>
             <button
+              onClick={() => onReject(bid.id)}
+              className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border border-red-200 flex items-center gap-1"
+            >
+              <span>✕</span> Reject
+            </button>
+            <button
               onClick={() => onAccept(bid.id)}
               className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
             >
@@ -1043,7 +1062,13 @@ function BidCard({ bid, onAccept, onViewProfile }) {
   );
 }
 
-function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
+function ActiveRequestPanel({
+  request,
+  bids,
+  onAcceptBid,
+  onRejectBid,
+  onDelete,
+}) {
   const attrs = a(request);
   const catObj = CATEGORIES.find((c) => c.value === attrs.category);
   const [sortBy, setSortBy] = useState("amount");
@@ -1052,19 +1077,21 @@ function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
   const [showProfile, setShowProfile] = useState(null);
   const status = STATUS_CONFIG[attrs.service_status] || STATUS_CONFIG.pending;
 
-  const sortedBids = [...bids].sort((x, y) => {
-    const ax = a(x);
-    const ay = a(y);
-    if (sortBy === "amount") return (ax.amount || 0) - (ay.amount || 0);
-    if (sortBy === "rating") {
-      const rx =
-        a(ax.provider?.data || ax.provider)?.provider_profile?.rating || 0;
-      const ry =
-        a(ay.provider?.data || ay.provider)?.provider_profile?.rating || 0;
-      return ry - rx;
-    }
-    return 0;
-  });
+  const sortedBids = [...bids]
+    .filter((b) => a(b).bid_status !== "rejected")
+    .sort((x, y) => {
+      const ax = a(x);
+      const ay = a(y);
+      if (sortBy === "amount") return (ax.amount || 0) - (ay.amount || 0);
+      if (sortBy === "rating") {
+        const rx =
+          a(ax.provider?.data || ax.provider)?.provider_profile?.rating || 0;
+        const ry =
+          a(ay.provider?.data || ay.provider)?.provider_profile?.rating || 0;
+        return ry - rx;
+      }
+      return 0;
+    });
 
   const avgPrice =
     bids.length > 0
@@ -1245,6 +1272,7 @@ function ActiveRequestPanel({ request, bids, onAcceptBid, onDelete }) {
                       key={bid.id}
                       bid={bid}
                       onAccept={onAcceptBid}
+                      onReject={onRejectBid}
                       onViewProfile={setShowProfile}
                     />
                   ))}
@@ -1477,6 +1505,29 @@ export default function ServicePage() {
     });
   };
 
+  const handleRejectBid = async (bidId) => {
+    const token = getToken();
+    const requestId = Object.keys(bidsMap).find((rid) =>
+      bidsMap[rid].some((b) => b.id === bidId),
+    );
+    if (!requestId) return;
+    const bid = bidsMap[requestId].find((b) => b.id === bidId);
+    const bidDocId = a(bid).documentId;
+    try {
+      await fetch(`${API_URL}/api/bids/${bidDocId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ data: { bid_status: "rejected" } }),
+      });
+      fetchBidsForRequest(requestId);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleAcceptBid = async (bidId) => {
     const token = getToken();
     const requestId = Object.keys(bidsMap).find((rid) =>
@@ -1574,6 +1625,7 @@ export default function ServicePage() {
                     request={req}
                     bids={bidsMap[req.id] || []}
                     onAcceptBid={handleAcceptBid}
+                    onRejectBid={handleRejectBid}
                     onDelete={handleDeleteRequest}
                   />
                 ))}

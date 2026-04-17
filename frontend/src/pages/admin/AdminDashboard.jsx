@@ -34,7 +34,7 @@ const SPECIALTIES = [
   "painting",
   "other",
 ];
-const SUB_STATUSES = ["active", "expired", "cancelled"];
+const SUB_STATUSES = ["active", "expired", "failed", "pending"];
 const SUB_PLANS = ["monthly", "yearly"];
 
 const STATUS_COLORS = {
@@ -1256,6 +1256,8 @@ function SubscriptionsTab({ token }) {
   const [saveError, setSaveError] = useState("");
   const [deleteItem, setDeleteItem] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [blockConfirm, setBlockConfirm] = useState(null);
+  const [blocking, setBlocking] = useState(false);
   const PER_PAGE = 8;
 
   useEffect(() => {
@@ -1275,6 +1277,66 @@ function SubscriptionsTab({ token }) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  function getExpiryInfo(expiresAt) {
+    if (!expiresAt) return null;
+    const now = new Date();
+    const exp = new Date(expiresAt);
+    const diffMs = exp - now;
+    const diffDays = Math.ceil(diffMs / 86400000);
+    if (diffDays < 0) {
+      return {
+        label: `Expired ${fmt(expiresAt)} — ${Math.abs(diffDays)} days ago`,
+        state: "expired",
+      };
+    }
+    if (diffDays <= 7) {
+      return {
+        label: `Expires ${fmt(expiresAt)} — ${diffDays} day${diffDays !== 1 ? "s" : ""} left`,
+        state: "soon",
+      };
+    }
+    return {
+      label: `Expires ${fmt(expiresAt)} — ${diffDays} days left`,
+      state: "ok",
+    };
+  }
+
+  const expiryColors = {
+    expired: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
+    soon: "bg-amber-500/10 text-amber-400 ring-1 ring-inset ring-amber-500/20",
+    ok: "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
+  };
+
+  const rowBorderColors = {
+    expired: "border-red-500/30",
+    soon: "border-amber-500/30",
+    ok: "border-zinc-800",
+  };
+
+  const handleBlockProvider = async () => {
+    const { sub, type } = blockConfirm;
+    const a = sub.attributes ?? sub;
+    const providerId = a.provider?.data?.id ?? a.provider?.id;
+    if (!providerId) return;
+    setBlocking(true);
+    try {
+      await fetch(`${BASE_URL}/admin-approval/block-provider/${providerId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason: type }),
+      });
+      setBlockConfirm(null);
+      await fetchSubs();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setBlocking(false);
     }
   };
 
@@ -1381,6 +1443,41 @@ function SubscriptionsTab({ token }) {
           loading={deleting}
         />
       )}
+      {blockConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-5">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <p className="text-white text-sm font-semibold mb-1">
+              {blockConfirm.type === "expired"
+                ? "Block — subscription expired"
+                : "Block — policy violation"}
+            </p>
+            <p className="text-zinc-400 text-xs mb-6">
+              {blockConfirm.type === "expired"
+                ? `This will block the provider and set their subscription status to "expired".`
+                : `This will block the provider and set their subscription status to "failed".`}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBlockConfirm(null)}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg py-2 text-xs font-semibold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBlockProvider}
+                disabled={blocking}
+                className={`flex-1 disabled:opacity-50 text-white rounded-lg py-2 text-xs font-semibold transition-colors ${
+                  blockConfirm.type === "expired"
+                    ? "bg-red-600 hover:bg-red-500"
+                    : "bg-amber-600 hover:bg-amber-500"
+                }`}
+              >
+                {blocking ? "Blocking..." : "Confirm Block"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4">
         <div className="text-white font-semibold text-sm">Subscriptions</div>
@@ -1450,11 +1547,15 @@ function SubscriptionsTab({ token }) {
             a.provider?.data?.attributes?.username ??
             a.provider?.username ??
             "—";
-          const isExpired = a.expires_at && new Date(a.expires_at) < new Date();
+          const expiry = getExpiryInfo(a.expires_at);
+          const borderClass = expiry
+            ? rowBorderColors[expiry.state]
+            : "border-zinc-800";
+
           return (
             <div
               key={sub.id}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:border-zinc-700 transition-colors"
+              className={`bg-zinc-900 border rounded-xl px-5 py-4 flex items-start gap-4 flex-wrap hover:brightness-110 transition-all ${borderClass}`}
             >
               <div className="flex-1 min-w-56">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1463,15 +1564,9 @@ function SubscriptionsTab({ token }) {
                   </span>
                   {badge(a.plan)}
                   {badge(a.subscriptionStatus)}
-                  {isExpired && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20">
-                      Expired
-                    </span>
-                  )}
                 </div>
-                <div className="flex gap-4 flex-wrap text-xs text-zinc-500">
+                <div className="flex gap-4 flex-wrap text-xs text-zinc-500 mb-2">
                   <span>Rs. {Number(a.amount || 0).toLocaleString()}</span>
-                  <span>Expires: {fmt(a.expires_at)}</span>
                   <span>Started: {fmt(a.starts_at)}</span>
                   {a.transaction_id && (
                     <span className="font-mono text-zinc-600">
@@ -1479,17 +1574,34 @@ function SubscriptionsTab({ token }) {
                     </span>
                   )}
                 </div>
+                {expiry && (
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg ${expiryColors[expiry.state]}`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        expiry.state === "expired"
+                          ? "bg-red-400"
+                          : expiry.state === "soon"
+                            ? "bg-amber-400"
+                            : "bg-emerald-400"
+                      }`}
+                    />
+                    {expiry.label}
+                  </span>
+                )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <button
                   onClick={() => openEdit(sub)}
                   className="bg-indigo-500/10 text-indigo-400 ring-1 ring-inset ring-indigo-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-indigo-500/20 transition-colors"
                 >
                   Edit
                 </button>
+
                 <button
                   onClick={() => setDeleteItem(sub)}
-                  className="bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-500/20 transition-colors"
+                  className="bg-zinc-800 text-zinc-500 ring-1 ring-inset ring-zinc-700 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-zinc-700 transition-colors"
                 >
                   Delete
                 </button>

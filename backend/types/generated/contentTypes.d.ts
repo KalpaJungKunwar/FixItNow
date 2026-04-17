@@ -534,6 +534,7 @@ export interface ApiMessageMessage extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     msg: Schema.Attribute.Text;
     publishedAt: Schema.Attribute.DateTime;
+    read: Schema.Attribute.Boolean & Schema.Attribute.DefaultTo<false>;
     sender: Schema.Attribute.Relation<
       'oneToOne',
       'plugin::users-permissions.user'
@@ -1280,7 +1281,7 @@ export interface PluginUsersPermissionsUser
       Schema.Attribute.SetMinMaxLength<{
         minLength: 6;
       }>;
-    profilePicture: Schema.Attribute.Media<'images' | 'files', true>;
+    profilePicture: Schema.Attribute.Media<'images' | 'files'>;
     provider: Schema.Attribute.String;
     provider_profile: Schema.Attribute.Relation<
       'oneToOne',

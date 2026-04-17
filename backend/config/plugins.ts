@@ -1,6 +1,4 @@
-import type { Core } from '@strapi/strapi';
-
-const config = ({ env }: Core.Config.Shared.ConfigParams) => ({
+export default {
   upload: {
     config: {
       responsiveDimensions: false,
@@ -14,6 +12,4 @@ const config = ({ env }: Core.Config.Shared.ConfigParams) => ({
       },
     },
   },
-});
-
-export default config;
+};
