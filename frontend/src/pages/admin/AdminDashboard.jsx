@@ -55,7 +55,7 @@ const STATUS_COLORS = {
   blocked: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   active:
     "bg-emerald-500/10 text-emerald-400 ring-1 ring-inset ring-emerald-500/20",
-  expired: "bg-zinc-500/10 text-zinc-400 ring-1 ring-inset ring-zinc-500/20",
+  expired: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   failed: "bg-red-500/10 text-red-400 ring-1 ring-inset ring-red-500/20",
   monthly: "bg-blue-500/10 text-blue-400 ring-1 ring-inset ring-blue-500/20",
   yearly:
@@ -1601,7 +1601,7 @@ function SubscriptionsTab({ token }) {
 
                 <button
                   onClick={() => setDeleteItem(sub)}
-                  className="bg-zinc-800 text-zinc-500 ring-1 ring-inset ring-zinc-700 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-zinc-700 transition-colors"
+                  className="bg-red-500 text-white ring-1 ring-inset ring-red-600 rounded-lg px-3 py-1.5 text-xs font-semibold hover:bg-red-600 transition-colors"
                 >
                   Delete
                 </button>
@@ -1735,7 +1735,6 @@ export function UserDetailModal({ user, token, onClose, onBlock, onUnblock }) {
                       ["Confirmed", detail.user.confirmed ? "Yes" : "No"],
                       ["Blocked", localBlocked ? "Yes" : "No"],
                       ["Joined", fmt(detail.user.createdAt)],
-                      ["Rejection Reason", detail.user.rejectionReason || "—"],
                     ].map(([label, value]) => (
                       <div key={label}>
                         <div className="text-zinc-500 text-[10px] font-semibold uppercase tracking-widest mb-1">
@@ -2708,21 +2707,6 @@ export default function AdminDashboard() {
                         : "Approve Account"}
                     </button>
                     <div className="border-t border-zinc-800 pt-3">
-                      <div className="text-zinc-500 text-xs mb-2">
-                        Rejection reason (optional)
-                      </div>
-                      <textarea
-                        placeholder="e.g. Documents are unclear..."
-                        value={rejectReasons[u.id] || ""}
-                        onChange={(e) =>
-                          setRejectReasons({
-                            ...rejectReasons,
-                            [u.id]: e.target.value,
-                          })
-                        }
-                        rows={3}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-200 text-xs outline-none resize-vertical focus:border-zinc-600 transition-colors"
-                      />
                       <button
                         onClick={() => handleReject(u.id)}
                         disabled={actionLoading === u.id + "_reject"}
