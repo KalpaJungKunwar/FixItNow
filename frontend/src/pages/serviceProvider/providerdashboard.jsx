@@ -441,7 +441,7 @@ function useUnreadMessages(requestIds, currentUserId) {
       setUnreadMap(results);
     };
     fetchUnread();
-    const id = setInterval(fetchUnread, 60_000);
+    const id = setInterval(fetchUnread, 1_000);
     return () => clearInterval(id);
   }, [requestIds.join(","), currentUserId]);
   return unreadMap;

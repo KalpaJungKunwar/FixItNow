@@ -73,7 +73,7 @@ function useUnreadMessages(requests) {
     };
 
     fetchUnread();
-    const id = setInterval(fetchUnread, 60_000);
+    const id = setInterval(fetchUnread, 1_000);
     return () => clearInterval(id);
   }, [requestIds]);
 
@@ -605,9 +605,17 @@ const StatusSteps = ({ status }) => {
   );
 };
 
-const TrackingPage = ({ request, onBack }) => {
+const TrackingPage = ({ request, onBack, scrollToChat = false }) => {
   const [liveRequest, setLiveRequest] = useState(request);
+  const [chatOpen, setChatOpen] = useState(scrollToChat);
   const pollRef = useRef(null);
+  const chatRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollToChat && chatRef.current) {
+      chatRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, []);
 
   useEffect(() => {
     const poll = async () => {
@@ -808,7 +816,56 @@ const TrackingPage = ({ request, onBack }) => {
           </div>
         </div>
 
-        <ChatBox requestId={liveRequest.documentId} currentUser={getUser()} />
+        <div ref={chatRef}>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <button
+              onClick={() => setChatOpen((prev) => !prev)}
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition"
+            >
+              <div className="flex items-center gap-2">
+                <svg
+                  className="w-4 h-4 text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
+                </svg>
+                <span className="text-sm font-semibold text-gray-800">
+                  Messages
+                </span>
+              </div>
+              <svg
+                className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${chatOpen ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+
+            {chatOpen && (
+              <div className="border-t border-gray-100">
+                <ChatBox
+                  requestId={liveRequest.documentId}
+                  currentUser={getUser()}
+                  scrollOnMount={scrollToChat}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1023,7 +1080,7 @@ const BookingCard = ({
 
         <div className="relative inline-flex">
           <button
-            onClick={() => onTrack(request)}
+            onClick={() => onTrack(request, true)}
             className="flex items-center gap-1.5 px-4 py-2 border border-gray-200 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-50 transition"
           >
             <svg
@@ -1065,6 +1122,7 @@ export default function CustomerDashboard() {
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [scrollToChat, setScrollToChat] = useState(false);
   const navigate = useNavigate();
   const user = getUser();
 
@@ -1076,7 +1134,9 @@ export default function CustomerDashboard() {
   const totalUnread = Object.values(unreadMap).reduce((s, n) => s + n, 0);
   const unreadBookingCount = Object.keys(unreadMap).length;
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!scrollToChat) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [view]);
 
   useEffect(() => {
@@ -1222,7 +1282,8 @@ export default function CustomerDashboard() {
       return sum + (acceptedBid?.amount ?? 0);
     }, 0);
 
-  const openTracking = (req) => {
+  const openTracking = (req, focusChat = false) => {
+    setScrollToChat(focusChat);
     setTrackingRequest(req);
     setView("tracking");
   };
@@ -1237,7 +1298,9 @@ export default function CustomerDashboard() {
   if (view === "tracking" && trackingRequest) {
     return (
       <TrackingPage
+        key={`${trackingRequest.documentId}-${scrollToChat}`}
         request={trackingRequest}
+        scrollToChat={scrollToChat}
         onBack={() => {
           setView("dashboard");
           fetchData();

@@ -4,12 +4,17 @@ import { useSocket } from "../context/SocketContext";
 const BASE_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
 const getToken = () => localStorage.getItem("token");
 
-export default function ChatBox({ requestId, currentUser }) {
+export default function ChatBox({
+  requestId,
+  currentUser,
+  scrollOnMount = false,
+}) {
   const socketRef = useSocket();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [fetchError, setFetchError] = useState(false);
   const bottomRef = useRef(null);
+  const hasLoadedRef = useRef(false);
 
   const markMessagesAsRead = useCallback(async () => {
     try {
@@ -133,6 +138,21 @@ export default function ChatBox({ requestId, currentUser }) {
       day: "numeric",
     });
   }
+
+  const scrollToBottom = () => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+ useEffect(() => {
+  if (!hasLoadedRef.current) {
+    hasLoadedRef.current = true;
+    if (scrollOnMount) scrollToBottom();
+    return; 
+  }
+  scrollToBottom(); 
+}, [messages]);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-80">
