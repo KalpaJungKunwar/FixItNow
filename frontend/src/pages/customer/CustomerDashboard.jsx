@@ -1165,7 +1165,7 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const fetchData = async () => {
     try {

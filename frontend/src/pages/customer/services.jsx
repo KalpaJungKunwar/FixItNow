@@ -413,10 +413,19 @@ function MapPicker({ lat, lng, onLocationSelect }) {
         link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
         document.head.appendChild(link);
       }
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-      script.onload = initMap;
-      document.head.appendChild(script);
+      if (!document.querySelector('script[src*="leaflet"]')) {
+        const script = document.createElement("script");
+        script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+        script.onload = initMap;
+        document.head.appendChild(script);
+      } else {
+        const wait = setInterval(() => {
+          if (window.L) {
+            clearInterval(wait);
+            initMap();
+          }
+        }, 50);
+      }
     }
 
     return () => {
@@ -1543,8 +1552,13 @@ export default function ServicePage() {
     const bid = bidsMap[requestId].find((b) => b.id === bidId);
     const bidDocId = a(bid).documentId;
     const requestDocId = a(
-      activeRequests.find((r) => r.id == requestId),
-    ).documentId;
+      activeRequests.find((r) => String(r.id) === String(requestId)),
+    )?.documentId;
+
+    if (!requestDocId) {
+      console.error("Could not find documentId for request", requestId);
+      return;
+    }
     try {
       await fetch(`${API_URL}/api/bids/${bidDocId}`, {
         method: "PUT",

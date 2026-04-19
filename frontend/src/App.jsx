@@ -31,14 +31,9 @@ function Layout({ children }) {
   const navigate = useNavigate();
   const hideLayout = NO_LAYOUT_ROUTES.includes(location.pathname);
 
-  const handleLogout = useCallback(() => {
-    logout();
-    navigate("/");
-  }, [logout, navigate]);
-
   return (
     <div className="flex flex-col min-h-screen">
-      {!hideLayout && <Header isLoggedIn={!!user} />}
+      {!hideLayout && <Header/>}
       <main className="flex-grow">{children}</main>
       {!hideLayout && <Footer />}
     </div>
@@ -124,7 +119,6 @@ function App() {
 
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/failed" element={<PaymentFailed />} />
-          <Route path="/payment/verify" element={<PaymentSuccess />} />
         </Routes>
       </Layout>
     </BrowserRouter>

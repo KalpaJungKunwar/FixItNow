@@ -1543,27 +1543,6 @@ function MyBidsTab({ providerId, payments, openChatDocId }) {
     });
   };
 
-  const handleConfirmComplete = async () => {
-    const { requestDocumentId } = confirmModal;
-    setConfirmModal(null);
-    try {
-      await fetch(`${API_URL}/api/service-requests/${requestDocumentId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${getToken()}`,
-        },
-        body: JSON.stringify({
-          data: { service_status: "awaiting_confirmation" },
-        }),
-      });
-      stopSharingLocation(requestDocumentId);
-      fetchMyBids();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   const handleCancelJob = (requestDocumentId) => {
     setConfirmModal({
       requestDocumentId,

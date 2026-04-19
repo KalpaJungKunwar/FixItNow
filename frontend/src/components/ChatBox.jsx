@@ -154,7 +154,7 @@ export default function ChatBox({
       return;
     }
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollOnMount]);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-80">

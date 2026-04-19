@@ -56,7 +56,13 @@ const PaymentFailed = () => {
 
             <div className="flex gap-3">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    navigate(-1);
+                  } else {
+                    navigate("/dashboard");
+                  }
+                }}
                 className="flex-1 border-2 border-gray-200 text-gray-600 font-semibold py-3.5 rounded-2xl text-sm hover:bg-gray-50 transition-colors"
               >
                 Go Back

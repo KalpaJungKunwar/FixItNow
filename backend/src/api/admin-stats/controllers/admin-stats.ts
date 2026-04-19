@@ -2,8 +2,14 @@ import { Context } from "koa";
 
 export default {
   async getStats(ctx: Context) {
-    const user = (ctx.state as any).user;
-    if (!user || user.roleType !== "admin") {
+    const ctxUser = (ctx.state as any).user;
+    if (!ctxUser) return ctx.unauthorized("You must be logged in");
+
+    const fullUser = await strapi
+      .query("plugin::users-permissions.user")
+      .findOne({ where: { id: ctxUser.id }, select: ["id", "roleType"] });
+
+    if (!fullUser || fullUser.roleType !== "admin") {
       return ctx.forbidden("Admins only");
     }
 
@@ -55,7 +61,7 @@ export default {
     ] = await Promise.all([
       strapi.db
         .query("api::service-request.service-request")
-        .count({ where: { service_status: "open" } }),
+        .count({ where: { service_status: "pending" } }),
       strapi.db
         .query("api::service-request.service-request")
         .count({ where: { service_status: "in_progress" } }),
@@ -70,7 +76,7 @@ export default {
     const providerProfiles = await strapi.db
       .query("api::provider-profile.provider-profile")
       .findMany({
-        select: ["rating",  "specialty"] as any,
+        select: ["rating", "specialty"] as any,
       });
 
     const avgRating = providerProfiles.length
@@ -81,8 +87,6 @@ export default {
           ) / providerProfiles.length
         ).toFixed(2)
       : "0";
-
-
 
     const specialtyBreakdown = providerProfiles.reduce(
       (acc: Record<string, number>, p: any) => {
