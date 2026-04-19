@@ -7,7 +7,10 @@ export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    socketRef.current = io("http://localhost:1337", {
+    const SOCKET_URL =
+      import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
+
+    socketRef.current = io(SOCKET_URL, {
       transports: ["websocket"],
     });
     return () => socketRef.current.disconnect();

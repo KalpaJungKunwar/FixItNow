@@ -356,11 +356,9 @@ function ReviewModal({ request, onClose, onSubmitted }) {
       );
       const allRevData = await allRevRes.json();
       const allRatings = allRevData?.data ?? [];
-      const existingRatings = allRatings.map((r) => r.rating || 0);
-      const ratingsWithCurrent = [...existingRatings, rating];
+      const allRatingValues = allRatings.map((r) => r.rating || 0);
       const newAvg =
-        ratingsWithCurrent.reduce((sum, r) => sum + r, 0) /
-        ratingsWithCurrent.length;
+        allRatingValues.reduce((sum, r) => sum + r, 0) / allRatingValues.length;
 
       const updateRes = await fetch(
         `${BASE_URL}/api/provider-profiles/${providerProfileDocId}`,

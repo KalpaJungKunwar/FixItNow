@@ -29,7 +29,6 @@ function Layout({ children }) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [showWarning, setShowWarning] = useState(false);
   const hideLayout = NO_LAYOUT_ROUTES.includes(location.pathname);
 
   const handleLogout = useCallback(() => {
@@ -38,15 +37,8 @@ function Layout({ children }) {
     navigate("/");
   }, [logout, navigate]);
 
-  const handleStay = useCallback(() => {
-    setShowWarning(false);
-  }, []);
-
   return (
     <div className="flex flex-col min-h-screen">
-      {showWarning && (
-        <SessionWarningModal onStay={handleStay} onLogout={handleLogout} />
-      )}
       {!hideLayout && <Header isLoggedIn={!!user} />}
       <main className="flex-grow">{children}</main>
       {!hideLayout && <Footer />}

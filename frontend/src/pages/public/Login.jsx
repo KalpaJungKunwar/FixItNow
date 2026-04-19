@@ -86,8 +86,12 @@ export default function Login() {
       else navigate("/");
     } catch (err) {
       const strapiMsg = err.response?.data?.error?.message;
+      const status = err.response?.status;
+      const isPendingOrRejected =
+        status === 403 ||
+        strapiMsg === "Your account has been blocked by an administrator";
 
-      if (strapiMsg === "Your account has been blocked by an administrator") {
+      if (isPendingOrRejected) {
         try {
           const statusRes = await axios.post(
             `${API_URL}/admin-approval/check-status`,
@@ -96,7 +100,6 @@ export default function Login() {
             },
           );
           const { approvalStatus } = statusRes.data;
-
           if (approvalStatus === "pending") {
             setError(
               "⏳ Your account is pending admin approval. Please check back in 24–48 hours.",
@@ -115,15 +118,14 @@ export default function Login() {
             "🚫 Your account has been blocked. Please contact support at support@fixitnow.com.",
           );
         }
+        setLoading(false);
         return;
       }
-
       const msg =
         strapiMsg === "Invalid identifier or password"
           ? "Invalid email or password."
           : strapiMsg || "Invalid email or password.";
       setError(msg);
-    } finally {
       setLoading(false);
     }
   };
