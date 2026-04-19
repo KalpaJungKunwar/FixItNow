@@ -60,7 +60,7 @@ export default function ChatBox({
           documentId: m.documentId,
           senderId: m.sender?.id,
           senderName: m.sender_name || m.sender?.username,
-          message: m.message,
+          message: m.msg || m.message,
           timestamp: m.createdAt,
         }));
 

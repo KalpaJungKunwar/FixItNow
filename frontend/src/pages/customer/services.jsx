@@ -946,7 +946,7 @@ function DeleteConfirmModal({ onConfirm, onCancel, loading }) {
   );
 }
 
-function BidCard({ bid, onAccept, onReject, onViewProfile }) {
+function BidCard({ bid, hasAcceptedBid, onAccept, onReject, onViewProfile }) {
   const attrs = a(bid);
   const provider = attrs.provider?.data
     ? a(attrs.provider.data)
@@ -1036,18 +1036,22 @@ function BidCard({ bid, onAccept, onReject, onViewProfile }) {
             >
               View Profile
             </button>
-            <button
-              onClick={() => onReject(bid.id)}
-              className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border border-red-200 flex items-center gap-1"
-            >
-              <span>✕</span> Reject
-            </button>
-            <button
-              onClick={() => onAccept(bid.id)}
-              className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
-            >
-              <CheckIcon className="w-3 h-3" /> Accept
-            </button>
+            {!hasAcceptedBid && (
+              <button
+                onClick={() => onReject(bid.id)}
+                className="bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors border border-red-200 flex items-center gap-1"
+              >
+                <span>✕</span> Reject
+              </button>
+            )}
+            {!hasAcceptedBid && (
+              <button
+                onClick={() => onAccept(bid.id)}
+                className="bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+              >
+                <CheckIcon className="w-3 h-3" /> Accept
+              </button>
+            )}
           </div>
         ) : (
           <span
@@ -1076,6 +1080,7 @@ function ActiveRequestPanel({
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [showProfile, setShowProfile] = useState(null);
   const status = STATUS_CONFIG[attrs.service_status] || STATUS_CONFIG.pending;
+  const hasAcceptedBid = bids.some((b) => a(b).bid_status === "accepted");
 
   const sortedBids = [...bids]
     .filter((b) => a(b).bid_status !== "rejected")
@@ -1271,6 +1276,7 @@ function ActiveRequestPanel({
                     <BidCard
                       key={bid.id}
                       bid={bid}
+                      hasAcceptedBid={hasAcceptedBid}
                       onAccept={onAcceptBid}
                       onReject={onRejectBid}
                       onViewProfile={setShowProfile}

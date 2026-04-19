@@ -1564,6 +1564,42 @@ function MyBidsTab({ providerId, payments, openChatDocId }) {
     }
   };
 
+  const handleCancelJob = (requestDocumentId) => {
+    setConfirmModal({
+      requestDocumentId,
+      title: "Cancel this job?",
+      message:
+        "Are you sure you want to cancel? The customer will be notified and the job will be marked as cancelled.",
+      confirmLabel: "Yes, Cancel Job",
+      danger: true,
+    });
+  };
+
+  const handleConfirmAction = async () => {
+    const { requestDocumentId, confirmLabel } = confirmModal;
+    setConfirmModal(null);
+    try {
+      const newStatus =
+        confirmLabel === "Yes, Cancel Job"
+          ? "cancelled"
+          : "awaiting_confirmation";
+      await fetch(`${API_URL}/api/service-requests/${requestDocumentId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: JSON.stringify({ data: { service_status: newStatus } }),
+      });
+      if (newStatus === "awaiting_confirmation") {
+        stopSharingLocation(requestDocumentId);
+      }
+      fetchMyBids();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (loading)
     return (
       <div className="flex justify-center py-20">
@@ -1587,7 +1623,7 @@ function MyBidsTab({ providerId, payments, openChatDocId }) {
           message={confirmModal.message}
           confirmLabel={confirmModal.confirmLabel}
           danger={confirmModal.danger}
-          onConfirm={handleConfirmComplete}
+          onConfirm={handleConfirmAction}
           onCancel={() => setConfirmModal(null)}
         />
       )}
@@ -1783,6 +1819,25 @@ function MyBidsTab({ providerId, payments, openChatDocId }) {
                             >
                               <CheckIcon className="w-3.5 h-3.5" />
                               Mark Completed
+                            </button>
+                            <button
+                              onClick={() => handleCancelJob(reqDocumentId)}
+                              className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-red-50 text-red-600 text-xs font-semibold rounded-xl border border-red-200 transition-colors"
+                            >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                              Cancel Job
                             </button>
                             <button
                               onClick={() =>
