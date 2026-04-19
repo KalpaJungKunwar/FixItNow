@@ -1,11 +1,5 @@
-import { useState, useCallback } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { useState } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Header from "./components/header";
 import Footer from "./components/footer";
@@ -27,13 +21,12 @@ const NO_LAYOUT_ROUTES = ["/providerdashboard", "/admin"];
 
 function Layout({ children }) {
   const location = useLocation();
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const hideLayout = NO_LAYOUT_ROUTES.includes(location.pathname);
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!hideLayout && <Header/>}
+      {!hideLayout && <Header />}
       <main className="flex-grow">{children}</main>
       {!hideLayout && <Footer />}
     </div>
