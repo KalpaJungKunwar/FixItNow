@@ -32,7 +32,6 @@ function Layout({ children }) {
   const hideLayout = NO_LAYOUT_ROUTES.includes(location.pathname);
 
   const handleLogout = useCallback(() => {
-    setShowWarning(false);
     logout();
     navigate("/");
   }, [logout, navigate]);
