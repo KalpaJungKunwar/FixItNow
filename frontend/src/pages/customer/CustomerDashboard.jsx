@@ -6,8 +6,8 @@ import ChatBox from "../../components/ChatBox";
 import ProviderProfilePage from "./ViewProviderInfo";
 
 const BASE_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
-const getToken = () => localStorage.getItem("token");
-const getUser = () => JSON.parse(localStorage.getItem("user") || "{}");
+const getToken = () => sessionStorage.getItem("token");
+const getUser = () => JSON.parse(sessionStorage.getItem("user") || "{}");
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({

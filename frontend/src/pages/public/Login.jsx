@@ -78,6 +78,9 @@ export default function Login() {
 
       login(userRes.data, jwt);
 
+      console.log("userRes.data", userRes.data);
+      console.log("role", userRes.data.role);
+
       if (roleType === "provider") navigate("/providerdashboard");
       else if (roleType === "admin") navigate("/admin");
       else navigate("/");

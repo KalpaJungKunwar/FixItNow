@@ -320,10 +320,10 @@ const AVATAR_COLORS = [
   "from-pink-400 to-pink-600",
 ];
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token");
 const getUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("user"));
+    return JSON.parse(sessionStorage.getItem("user"));
   } catch {
     return null;
   }
@@ -2232,8 +2232,8 @@ function ProfileTab({
           : `${API_URL}${newUrl}`;
         justUploadedRef.current = true;
         setPicPreview(fullUrl);
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        localStorage.setItem(
+        const stored = JSON.parse(sessionStorage.getItem("user") || "{}");
+        sessionStorage.setItem(
           "user",
           JSON.stringify({ ...stored, profilePicture: { ...uploaded[0] } }),
         );
@@ -2268,13 +2268,13 @@ function ProfileTab({
         throw new Error(e?.error?.message || "Update failed");
       }
       const updated = await res.json();
-      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      const stored = JSON.parse(sessionStorage.getItem("user") || "{}");
       const updatedUser = {
         ...stored,
         username: updated.username,
         email: updated.email,
       };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      sessionStorage.setItem("user", JSON.stringify(updatedUser));
       if (onUserSaved) onUserSaved(updatedUser);
       setAccountSuccess(true);
       setTimeout(() => setAccountSuccess(false), 3000);
@@ -2838,7 +2838,7 @@ export default function ProviderDashboard() {
         : (data.profilePicture ?? null);
       const updatedUser = { ...u, profilePicture };
       setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      sessionStorage.setItem("user", JSON.stringify(updatedUser));
       const raw = data?.provider_profile;
       if (!raw) {
         console.warn("[fetchProfile] No profile found");

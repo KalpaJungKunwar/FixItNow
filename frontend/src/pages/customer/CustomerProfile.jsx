@@ -2,10 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const BASE_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token");
 const getUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("user") || "{}");
+    return JSON.parse(sessionStorage.getItem("user") || "{}");
   } catch {
     return {};
   }
@@ -167,9 +167,9 @@ export default function CustomerProfile() {
         justUploadedRef.current = true;
         setPicPreview(fullUrl);
 
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        const stored = JSON.parse(sessionStorage.getItem("user") || "{}");
         const updatedUser = { ...stored, profilePicture: { ...uploaded[0] } };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        sessionStorage.setItem("user", JSON.stringify(updatedUser));
         setUser(updatedUser);
       }
 
@@ -236,7 +236,7 @@ export default function CustomerProfile() {
         email: updated.email,
       };
 
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      sessionStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
 
       setSaveSuccess(true);

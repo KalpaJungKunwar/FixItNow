@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useSocket } from "../context/SocketContext";
 
 const BASE_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token");
 
 export default function ChatBox({
   requestId,
@@ -14,6 +14,7 @@ export default function ChatBox({
   const [input, setInput] = useState("");
   const [fetchError, setFetchError] = useState(false);
   const bottomRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const hasLoadedRef = useRef(false);
 
   const markMessagesAsRead = useCallback(async () => {
@@ -140,19 +141,20 @@ export default function ChatBox({
   }
 
   const scrollToBottom = () => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop =
+        scrollContainerRef.current.scrollHeight;
     }
   };
 
- useEffect(() => {
-  if (!hasLoadedRef.current) {
-    hasLoadedRef.current = true;
-    if (scrollOnMount) scrollToBottom();
-    return; 
-  }
-  scrollToBottom(); 
-}, [messages]);
+  useEffect(() => {
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      if (scrollOnMount) scrollToBottom();
+      return;
+    }
+    scrollToBottom();
+  }, [messages]);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-80">
@@ -160,7 +162,10 @@ export default function ChatBox({
         <h2 className="text-sm font-semibold text-gray-800">Messages</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto px-5 py-4 space-y-3"
+      >
         {fetchError && (
           <p className="text-xs text-red-400 text-center mt-8">
             Failed to load messages. Please try again.

@@ -451,7 +451,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isLoggedIn = !!user;
-  const token = isLoggedIn ? localStorage.getItem("token") : null;
+  const token = isLoggedIn ? sessionStorage.getItem("token") : null;
 
   useEffect(() => {
     if (user?.roleType === "admin") navigate("/admin", { replace: true });

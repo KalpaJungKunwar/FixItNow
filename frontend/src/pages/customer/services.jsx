@@ -315,10 +315,10 @@ const AVATAR_COLORS = [
   "from-pink-400 to-pink-600",
 ];
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token");
 const getUser = () => {
   try {
-    return JSON.parse(localStorage.getItem("user"));
+    return JSON.parse(sessionStorage.getItem("user"));
   } catch {
     return null;
   }

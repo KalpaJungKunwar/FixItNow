@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 const API_URL = import.meta.env.VITE_STRAPI_URL || "http://localhost:1337";
-const getToken = () => localStorage.getItem("token");
+const getToken = () => sessionStorage.getItem("token");
 
 const AVATAR_COLORS = [
   "from-amber-400 to-amber-600",
