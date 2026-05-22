@@ -1342,11 +1342,15 @@ function SubscriptionsTab({ token }) {
 
   const openEdit = (sub) => {
     const a = sub.attributes ?? sub;
+    const expiresAt = a.expires_at ? a.expires_at.slice(0, 10) : "";
+    const isExpired = expiresAt && new Date(expiresAt) < new Date();
     setEditValues({
-      subscriptionStatus: a.subscriptionStatus || "active",
+      subscriptionStatus: isExpired
+        ? "expired"
+        : a.subscriptionStatus || "active",
       plan: a.plan || "monthly",
       amount: a.amount || "",
-      expires_at: a.expires_at ? a.expires_at.slice(0, 10) : "",
+      expires_at: expiresAt,
     });
     setEditItem(sub);
     setSaveError("");
@@ -1364,7 +1368,15 @@ function SubscriptionsTab({ token }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          data: { ...editValues, amount: Number(editValues.amount) },
+          data: {
+            ...editValues,
+            amount: Number(editValues.amount),
+            subscriptionStatus:
+              editValues.expires_at &&
+              new Date(editValues.expires_at) < new Date()
+                ? "expired"
+                : editValues.subscriptionStatus,
+          },
         }),
       });
       if (!res.ok) {
@@ -1428,7 +1440,23 @@ function SubscriptionsTab({ token }) {
             { key: "expires_at", label: "Expires At", type: "date" },
           ]}
           values={editValues}
-          onChange={(k, v) => setEditValues((p) => ({ ...p, [k]: v }))}
+          onChange={(k, v) => {
+            setEditValues((p) => {
+              const updated = { ...p, [k]: v };
+              if (k === "expires_at" && v) {
+                const isExpired = new Date(v) < new Date();
+                if (isExpired && updated.subscriptionStatus === "active") {
+                  updated.subscriptionStatus = "expired";
+                } else if (
+                  !isExpired &&
+                  updated.subscriptionStatus === "expired"
+                ) {
+                  updated.subscriptionStatus = "active";
+                }
+              }
+              return updated;
+            });
+          }}
           onSave={handleSave}
           onClose={() => setEditItem(null)}
           saving={saving}
@@ -1563,7 +1591,11 @@ function SubscriptionsTab({ token }) {
                     {provider}
                   </span>
                   {badge(a.plan)}
-                  {badge(a.subscriptionStatus)}
+                  {badge(
+                    a.expires_at && new Date(a.expires_at) < new Date()
+                      ? "expired"
+                      : a.subscriptionStatus,
+                  )}
                 </div>
                 <div className="flex gap-4 flex-wrap text-xs text-zinc-500 mb-2">
                   <span>Rs. {Number(a.amount || 0).toLocaleString()}</span>
