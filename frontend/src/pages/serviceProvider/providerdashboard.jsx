@@ -1918,8 +1918,7 @@ function SubscriptionPaywall({ onSubscribe, loading }) {
           Activate Your Provider Account
         </h2>
         <p className="text-sm text-gray-500 mb-6">
-          A subscription is required to access the provider dashboard and
-          receive job bids.
+          A subscription is required to access the provider dashboard
         </p>
         <div className="flex gap-3 mb-4">
           <button
